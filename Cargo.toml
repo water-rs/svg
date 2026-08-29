@@ -1,35 +1,49 @@
 [package]
 name = "waterui-svg"
 version = "0.1.0"
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
+edition = "2024"
+rust-version = "1.95"
+authors = ["Lexo Liu <me@lexo.cool>"]
+license = "Apache-2.0 OR MIT"
 readme = "README.md"
-repository.workspace = true
+repository = "https://github.com/water-rs/svg"
 description = "SVG rendering for WaterUI using Vello"
 keywords = ["svg", "graphics", "waterui", "vello"]
 categories = ["gui"]
 
+[lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+correctness = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "warn"
+multiple_crate_versions = "allow"
+
 [dependencies]
-waterui-core.workspace = true
-waterui-macros.workspace = true
-waterui-graphics = { workspace = true, features = ["gpu"] }
-waterui-layout.workspace = true
-waterui-str.workspace = true
-tracing.workspace = true
-usvg.workspace = true
-kurbo.workspace = true
-peniko.workspace = true
+waterui-core = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+waterui-macros = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+waterui-graphics = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev", features = ["gpu"] }
+waterui-layout = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+waterui-str = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+tracing = "0.1.44"
+usvg = "0.46.0"
+kurbo = "0.13"
+peniko = "0.6"
 
 [dev-dependencies]
-waterui = { path = "../../.." }
-waterui-testing = { path = "../../../testing" }
-pollster.workspace = true
-# The engine-parity test drives a headless surface itself, which is the only
-# thing in this crate that touches `wgpu` directly.
-wgpu.workspace = true
+waterui = { git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+waterui-testing = { git = "https://github.com/water-rs/waterui.git", branch = "dev" }
+pollster = "1.0"
+wgpu = "29.0.4"
 
-[lints]
-workspace = true
 [package.metadata.cargo-machete]
 ignored = ["waterui-macros"]
