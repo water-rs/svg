@@ -38,8 +38,11 @@ fn render_group(scene: &mut dyn Scene2D, group: &usvg::Group, base: Affine) {
             usvg::Node::Group(group) => render_nested_group(scene, group, base, transform),
             usvg::Node::Path(path) => render_path(scene, path, transform),
             usvg::Node::Image(image) => render_image(scene, image, transform),
-            // Text is drawn from its flattened outlines, so it needs no font
-            // machinery of its own here.
+            // Text arrives already flattened into outlines, so this draws
+            // glyphs the same way it draws any other geometry. The parser only
+            // produces such a node when it had both the `text` feature and a
+            // font to lay the text out with; otherwise it drops the `<text>`
+            // element and this arm never runs.
             usvg::Node::Text(text) => render_group(scene, text.flattened(), base),
         }
     }

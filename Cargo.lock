@@ -6993,6 +6993,7 @@ dependencies = [
 name = "waterui-svg"
 version = "0.1.0"
 dependencies = [
+ "fontdb",
  "kurbo",
  "peniko",
  "pollster 1.0.1",

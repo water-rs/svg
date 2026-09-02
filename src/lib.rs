@@ -5,6 +5,29 @@
 //!
 //! A document is parsed with `usvg` and drawn through the engine-independent
 //! `Scene2D` contract, so it renders on whichever engine the backend supplies.
+//!
+//! # Text, fonts and cargo features
+//!
+//! Everything this crate draws is geometry: paths, images and — when a document
+//! has text and a font to set it in — the outlines `usvg` flattens that text
+//! into. It never asks the operating system for a font, so a drawing looks the
+//! same on every backend and on a device that has no font catalogue at all.
+//!
+//! | Feature | Default | Effect |
+//! | --- | --- | --- |
+//! | `text` | off | Enables `usvg/text`, which lays `<text>` out into outline paths, and the font-taking [`SvgSceneContent::with_fonts`] constructor. Costs `fontdb`, `rustybuzz` and the `unicode-bidi` / `unicode-script` / `unicode-vo` crates. |
+//!
+//! `usvg` is depended on with `default-features = false`. Its `system-fonts`
+//! and `memmap-fonts` defaults are deliberately not enabled: both only widen
+//! `fontdb` towards the filesystem (directory and fontconfig scanning,
+//! memory-mapped faces), and this crate never asks `fontdb` to read a file. An
+//! application that wants the operating system's fonts owns that decision
+//! itself — it builds the font database and passes it to
+//! [`SvgSceneContent::with_fonts`].
+//!
+//! Without `text`, and with `text` but no fonts, a `<text>` element is dropped
+//! during parsing and draws nothing. [`Svg`] itself always parses without
+//! fonts: it is the icon primitive, and icon artwork is paths.
 
 extern crate alloc;
 
