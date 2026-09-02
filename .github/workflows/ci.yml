@@ -54,6 +54,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      # `--all-features` compiles the `text` feature; nothing else in CI
+      # compiles the default feature set, which is the one applications get.
+      - run: cargo check --workspace --all-targets --no-default-features
 
   msrv:
     name: MSRV

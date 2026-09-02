@@ -28,6 +28,21 @@ cargo = { level = "warn", priority = -1 }
 undocumented_unsafe_blocks = "warn"
 multiple_crate_versions = "allow"
 
+[features]
+# No text support by default: every known consumer of this crate draws icon
+# geometry (`Svg::from_path`, `Svg::from_stroke_path`, icon sets), and the
+# parser this crate uses carries no font database, so `usvg/text` would pull
+# `fontdb`, `rustybuzz` and the `unicode-*` crates into every application for a
+# code path that cannot produce a glyph. See README.md for the full table.
+default = []
+# Lay `<text>` out into outline paths. This is the only usvg feature that
+# affects what this crate draws: with it off the parser drops `<text>`
+# outright, with it on the text becomes the flattened outline group the
+# renderer already draws. Enabling it also unlocks the font-taking
+# constructors, which are the only way to give the parser a font to lay text
+# out with.
+text = ["usvg/text"]
+
 [dependencies]
 waterui-core = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
 waterui-macros = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
@@ -35,7 +50,12 @@ waterui-graphics = { version = "0.3.0", git = "https://github.com/water-rs/water
 waterui-layout = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
 waterui-str = { version = "0.3.0", git = "https://github.com/water-rs/waterui.git", branch = "dev" }
 tracing = "0.1.44"
-usvg = "0.46.0"
+# usvg's default features are `text`, `system-fonts` and `memmap-fonts`. The
+# last two only widen `fontdb` (filesystem and fontconfig scanning,
+# memory-mapped faces), and this crate never asks `fontdb` to read a file: it
+# is handed a database or it parses with an empty one. They are off with no
+# effect on output; see the feature table in README.md.
+usvg = { version = "0.46.0", default-features = false }
 kurbo = "0.13"
 peniko = "0.6"
 
