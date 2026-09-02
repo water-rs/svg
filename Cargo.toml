@@ -61,11 +61,6 @@ peniko = "0.6"
 
 [dev-dependencies]
 waterui = { git = "https://github.com/water-rs/waterui.git", branch = "dev" }
-# The font catalogue of the machine running the tests, which is what the text
-# fixtures are laid out with. It is a dev-dependency on purpose: reading the
-# operating system's fonts is a caller's job, never the library's, so
-# `fontdb`'s filesystem features stay out of the published dependency graph.
-fontdb = "0.23"
 waterui-testing = { git = "https://github.com/water-rs/waterui.git", branch = "dev" }
 pollster = "1.0"
 wgpu = "29.0.4"

@@ -13,6 +13,8 @@ use std::path::Path;
 use waterui_graphics::shared_context::SceneEngine;
 use waterui_graphics::{GpuRuntime, OffscreenRenderConfig, OffscreenSize, SceneView};
 use waterui_svg::SvgSceneContent;
+#[cfg(feature = "text")]
+use waterui_svg::usvg::fontdb;
 
 const STROKED_ICON: &str = include_str!("data/stroked_icon.svg");
 const PAINTED_ICON: &str = include_str!("data/painted_icon.svg");
@@ -21,6 +23,10 @@ const PAINTED_ICON: &str = include_str!("data/painted_icon.svg");
 // the same picture whichever `usvg` font features are compiled in.
 const GENERIC_FAMILY_TEXT: &str = include_str!("data/text_generic_family.svg");
 const NAMED_FAMILY_TEXT: &str = include_str!("data/text_named_family.svg");
+// The one font those fixtures are laid out with, bundled so that the drawing is
+// the same on every machine rather than whatever the host has installed.
+#[cfg(feature = "text")]
+const ROBOTO: &[u8] = include_bytes!("fonts/Roboto-Regular.ttf");
 
 #[test]
 fn both_scene_engines_render_an_svg() {
@@ -54,13 +60,13 @@ fn both_scene_engines_render_an_svg() {
     }
 }
 
-/// The same text fixture, drawn with a font database behind it.
+/// The same text fixtures, drawn with a font database behind them.
 ///
 /// This is what the `text` feature buys: `usvg` lays the `<text>` element out
 /// and flattens it into outlines, and those outlines draw like any other path.
-/// The fonts come from this machine's catalogue, loaded here by the test rather
-/// than by the library, which is why the library needs none of `usvg`'s
-/// filesystem font features.
+/// The font is one file bundled beside these tests and handed over as bytes, so
+/// the picture is the same on every machine and the library needs none of
+/// `usvg`'s filesystem font features to draw it.
 #[cfg(feature = "text")]
 #[test]
 fn text_draws_when_the_caller_supplies_fonts() {
@@ -71,11 +77,8 @@ fn text_draws_when_the_caller_supplies_fonts() {
     let size = OffscreenSize::try_from_pixels(192, 192).expect("test size must be valid");
 
     let mut fonts = fontdb::Database::new();
-    fonts.load_system_fonts();
-    assert!(
-        !fonts.is_empty(),
-        "this machine reports no installed fonts, so the fixture cannot be laid out"
-    );
+    fonts.load_font_data(ROBOTO.to_vec());
+    fonts.set_sans_serif_family("Roboto");
     let fonts = std::sync::Arc::new(fonts);
 
     for (content, icon_name) in [

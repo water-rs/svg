@@ -19,7 +19,7 @@ named here rather than inherited:
 | `usvg` feature | Enabled | Why |
 | --- | --- | --- |
 | `text` | through this crate's `text` feature | It is the only `usvg` feature that changes what this crate draws: with it off the parser drops `<text>` outright; with it on, and given fonts, the element becomes the flattened outline group the renderer already draws. |
-| `system-fonts` | no | It widens `fontdb` towards the filesystem (font directory scanning, fontconfig). This crate never asks `fontdb` to read a file — it is handed a database or it parses with an empty one — so the feature cannot affect output. A text fixture naming a font installed on the machine renders identically with and without it. |
+| `system-fonts` | no | It widens `fontdb` towards the filesystem (font directory scanning, fontconfig). This crate never asks `fontdb` to read a file — it is handed a database or it parses with an empty one — so the feature cannot affect output. A text fixture naming a specific family renders identically with and without it, as does one asking for a generic family. |
 | `memmap-fonts` | no | It memory-maps font files that `fontdb` loaded from disk. Nothing here loads a font from disk. |
 
 An application that wants the operating system's fonts owns that decision

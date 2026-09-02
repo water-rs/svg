@@ -99,6 +99,10 @@ mod tests {
     const NAMED_FAMILY: &str = include_str!("../tests/data/text_named_family.svg");
     const PAINTED_ICON: &str = include_str!("../tests/data/painted_icon.svg");
     const STROKED_ICON: &str = include_str!("../tests/data/stroked_icon.svg");
+    /// The one font the text fixtures are laid out with, so that they flatten
+    /// into the same outlines on every machine.
+    #[cfg(feature = "text")]
+    const ROBOTO: &[u8] = include_bytes!("../tests/fonts/Roboto-Regular.ttf");
 
     /// What a parsed document actually contains, counted node by node.
     #[derive(Debug, Default, PartialEq, Eq)]
@@ -194,19 +198,18 @@ mod tests {
 
     /// Handed a font database, the same fixtures lay out into outline paths.
     ///
-    /// The database is built here, from this machine's font catalogue, using
-    /// `fontdb`'s own filesystem support — which is exactly the code `usvg`'s
-    /// `system-fonts` feature would have pulled into the library. Text renders
-    /// without it, so the library does not carry it.
+    /// The database holds one font, bundled with these tests, and it is built
+    /// from bytes: no filesystem scanning, no fontconfig, none of what `usvg`'s
+    /// `system-fonts` feature would have pulled into the library. That is the
+    /// evidence the feature is not needed — and it also keeps the assertion
+    /// about this crate rather than about whichever fonts a machine happens to
+    /// have installed.
     #[cfg(feature = "text")]
     #[test]
     fn text_with_fonts_becomes_outline_paths() {
-        let mut fonts = fontdb::Database::new();
-        fonts.load_system_fonts();
-        assert!(
-            !fonts.is_empty(),
-            "this machine reports no installed fonts, so the fixture cannot be laid out"
-        );
+        let mut fonts = usvg::fontdb::Database::new();
+        fonts.load_font_data(ROBOTO.to_vec());
+        fonts.set_sans_serif_family("Roboto");
         let fonts = alloc::sync::Arc::new(fonts);
 
         for (fixture, content) in [("generic", GENERIC_FAMILY), ("named", NAMED_FAMILY)] {
