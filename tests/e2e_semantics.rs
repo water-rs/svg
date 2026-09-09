@@ -33,6 +33,36 @@ fn resized_svg_view() -> impl waterui::View {
         .a11y_label("Resized svg")
 }
 
+/// A document that names itself with a root `<title>`.
+fn titled_svg_view() -> impl waterui::View {
+    Svg::new(include_str!("data/titled_icon.svg"))
+}
+
+/// The same document, named by the application instead.
+fn renamed_titled_svg_view() -> impl waterui::View {
+    Svg::new(include_str!("data/titled_icon.svg")).a11y_label("Severe weather")
+}
+
+#[waterui::test(titled_svg_view)]
+fn a_titled_svg_reaches_a_screen_reader_under_its_own_title(app: &mut SemanticApp) {
+    app.query()
+        .role(Role::IMAGE)
+        .label("Warning sign")
+        .assert_exists();
+}
+
+#[waterui::test(renamed_titled_svg_view)]
+fn the_application_label_wins_over_the_title(app: &mut SemanticApp) {
+    app.query()
+        .role(Role::IMAGE)
+        .label("Severe weather")
+        .assert_exists();
+    assert!(
+        !app.query().label("Warning sign").exists(),
+        "the title must not reach the tree once the application named the drawing"
+    );
+}
+
 #[waterui::test(filled_svg_view)]
 fn filled_svg_exposes_accessibility_image(app: &mut SemanticApp) {
     app.query()

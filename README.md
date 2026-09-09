@@ -29,6 +29,25 @@ filesystem features it wants), fills it, and passes it to
 which is the icon primitive and always parses without them — a `<text>` element
 is dropped during parsing and draws nothing.
 
+## Accessible name
+
+A document that names itself with a root `<title>` reaches a screen reader
+under that name:
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <title>Warning sign</title>
+  <path d="M12 2L22 20H2Z"/>
+</svg>
+```
+
+The title is the name the drawing *offers*. An application's own
+`.a11y_label(…)` on the view or any ancestor wins over it, because the
+application knows what the icon is for. A `<title>` nested inside an element
+names that element rather than the document and is not used; path data
+(`Svg::from_path`, `Svg::from_stroke_path`) carries no title, so those icons
+stay unnamed until the application names them.
+
 ## License
 
 Licensed under either of
