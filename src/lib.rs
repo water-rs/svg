@@ -33,6 +33,7 @@ extern crate alloc;
 
 mod scene_data;
 mod scene_renderer;
+mod title;
 mod tree_renderer;
 
 /// The SVG parser this crate draws from.
@@ -45,6 +46,8 @@ pub use scene_renderer::SvgSceneContent;
 use alloc::string::String;
 use alloc::sync::Arc;
 
+use waterui_core::layout::Size;
+use waterui_core::reactive::signal::IntoComputed;
 use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, constant};
 use waterui_graphics::color::Color;
 use waterui_graphics::{Picture, SceneRecording};
@@ -182,17 +185,41 @@ impl Svg {
     }
 
     /// Records this SVG, drawn in `color`, at its intrinsic size.
-    fn record(&self, color: &str) -> (waterui_core::layout::Size, Arc<SceneRecording>) {
+    fn record(&self, color: &str) -> (Size, Arc<SceneRecording>) {
         let scene_data = scene_data::SvgSceneData::parse(&self.build_svg_content(color));
         let size = scene_data.intrinsic_size();
         let recording = Picture::record(|scene| scene_data.draw(scene, size.width, size.height));
         (size, recording)
     }
 
+    /// The name the document gives itself: the root `<title>` of full markup.
+    ///
+    /// Path data carries no title, so an icon built from a `d` attribute stays
+    /// unnamed until the application names it with `.a11y_label(…)` — which
+    /// also wins over a title wherever both exist.
+    fn accessible_name(&self) -> Option<String> {
+        let content = self.content.as_str();
+        content
+            .trim_start()
+            .starts_with('<')
+            .then(|| title::document_title(content))
+            .flatten()
+    }
+
+    /// A picture of this SVG offering the document's own name to a screen
+    /// reader.
+    fn picture(&self, size: Size, recording: impl IntoComputed<Arc<SceneRecording>>) -> Picture {
+        let picture = Picture::new(size, recording);
+        match self.accessible_name() {
+            Some(name) => picture.labeled(name),
+            None => picture,
+        }
+    }
+
     /// A picture of this SVG drawn in a fixed `color`.
     fn to_picture(&self, color: &str) -> Picture {
         let (size, recording) = self.record(color);
-        Picture::new(size, constant(recording))
+        self.picture(size, constant(recording))
     }
 
     /// A picture of this SVG whose drawing follows `color_signal`: a new colour
@@ -204,7 +231,7 @@ impl Svg {
     {
         let (size, _) = self.record("#000000");
         let svg = self.clone();
-        Picture::new(size, color_signal.map(move |color| svg.record(&color).1))
+        self.picture(size, color_signal.map(move |color| svg.record(&color).1))
     }
 
     /// Wraps a view in a frame carrying the SVG's intrinsic size.
