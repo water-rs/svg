@@ -6974,7 +6974,7 @@ dependencies = [
  "waterui-navigation",
  "waterui-shape",
  "waterui-str",
- "waterui-svg 0.2.0",
+ "waterui-svg 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "waterui-text",
  "waterui-url",
  "waterui-video",
@@ -7128,7 +7128,7 @@ dependencies = [
 
 [[package]]
 name = "waterui-svg"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "kurbo",
  "peniko",
