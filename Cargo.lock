@@ -5631,6 +5631,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "suiteki"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d44b6f6c8cdaee3db2b37786c53faefb88d1b86a529f2bc76ec78c9886f1e241"
+dependencies = [
+ "nami-core",
+]
+
+[[package]]
 name = "svg_fmt"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7133,6 +7142,7 @@ dependencies = [
  "kurbo",
  "peniko",
  "pollster 1.0.1",
+ "suiteki",
  "tracing",
  "usvg",
  "waterui",
@@ -7140,7 +7150,6 @@ dependencies = [
  "waterui-graphics 0.4.0",
  "waterui-layout",
  "waterui-macros",
- "waterui-str",
  "waterui-testing",
  "wgpu",
 ]

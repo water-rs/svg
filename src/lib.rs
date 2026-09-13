@@ -46,13 +46,13 @@ pub use scene_renderer::SvgSceneContent;
 use alloc::string::String;
 use alloc::sync::Arc;
 
+use suiteki::Str;
 use waterui_core::layout::Size;
 use waterui_core::reactive::signal::IntoComputed;
 use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, constant};
 use waterui_graphics::color::Color;
 use waterui_graphics::{Picture, SceneRecording};
 use waterui_layout::frame::Frame;
-use waterui_str::Str;
 
 /// A view for rendering SVG content using GPU-accelerated rendering.
 ///

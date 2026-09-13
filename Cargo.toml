@@ -51,7 +51,7 @@ waterui-core = "0.3.1"
 waterui-macros = "0.3.0"
 waterui-graphics = { version = "0.4.0", features = ["gpu"] }
 waterui-layout = "0.3.1"
-waterui-str = "0.3.0"
+suiteki = { version = "0.1", features = ["nami"] }
 tracing = "0.1.44"
 # usvg's default features are `text`, `system-fonts` and `memmap-fonts`. The
 # last two only widen `fontdb` (filesystem and fontconfig scanning,
