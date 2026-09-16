@@ -3,7 +3,7 @@ resolver = "2"
 
 [package]
 name = "waterui-svg"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Lexo Liu <me@lexo.cool>"]
@@ -47,10 +47,10 @@ default = []
 text = ["usvg/text"]
 
 [dependencies]
-waterui-core = "0.3.1"
-waterui-macros = "0.3.0"
-waterui-graphics = { version = "0.4.0", features = ["gpu"] }
-waterui-layout = "0.3.1"
+waterui-core = "0.3.2"
+waterui-macros = "0.3.1"
+waterui-graphics = { version = "0.4.1", features = ["gpu"] }
+waterui-layout = "0.3.2"
 suiteki = { version = "0.1", features = ["nami"] }
 tracing = "0.1.44"
 # usvg's default features are `text`, `system-fonts` and `memmap-fonts`. The
@@ -63,21 +63,63 @@ kurbo = "0.13"
 peniko = "0.6"
 
 [dev-dependencies]
-waterui-graphics = { version = "0.4.0", features = ["cpu-scene"] }
-waterui = "0.4.0"
-waterui-testing = "0.4.0"
+waterui-graphics = { version = "0.4.1", features = ["cpu-scene"] }
+waterui = "0.4.1"
+waterui-testing = "0.4.1"
 pollster = "1.0"
 wgpu = "29.0.4"
 
 [package.metadata.cargo-machete]
 ignored = ["waterui-macros"]
 
-# The WaterUI packages above come from crates.io, so this repository builds
-# against the same released APIs its users get. The third-party pins below are
-# the framework's own: the published `waterui-graphics` was built with these
-# forks, and dropping them here would render this crate's tests through
-# different code than the framework runs.
+# Until the 0.5.0 wave is on crates.io every `waterui-*` crate this graph
+# resolves is patched to the release-candidate revision on `water-rs/waterui`,
+# so the graph can never carry two copies of `waterui-core`. The requirements
+# above name what the pinned revision provides — a `[patch]` candidate must
+# satisfy the requirement, and the pinned manifests still carry the
+# pre-release versions — so they move to the published wave versions in the
+# change that drops this table. The hydrolysis pair is pinned to the `dev`
+# commits that adopt the same wave. `waterui-svg` itself is patched to this
+# checkout so the facade's `gpu` feature resolves it to the crate under test
+# instead of a second registry copy.
 [patch.crates-io]
+waterui = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-assets = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-assets-core = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-assets-macros = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-assets-planner = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-backend-core = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-controls = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-core = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-dylib = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-form = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-icon = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-inspector-protocol = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-internal = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-locale = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-map = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-media = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-navigation = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-preview-protocol = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-shape = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-testing = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-text = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-url = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-video = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-watcher-set = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-webview = { git = "https://github.com/water-rs/waterui", rev = "8a5c93a4f571db43713c26710336cc3b098d91f1" }
+waterui-svg = { path = "." }
+hydrolysis = { git = "https://github.com/water-rs/hydrolysis", rev = "46954be95bded9534f2f7c15bc50a8b2df777f7b" }
+hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", rev = "0e1e95ab4b2b1c70edcef8df50abc9642249eede" }
+
+# The third-party pins below are the framework's own `[patch.crates-io]` at the
+# pinned revision: the git-pinned `waterui-*` crates declare the registry
+# requirements, and a dependency's patch table does not apply downstream, so
+# this table has to carry the same forks or the graph builds upstream code the
+# framework deliberately avoids.
 xcb = { git = "https://github.com/rust-x-bindings/rust-xcb", rev = "ae3b2cd080e78173223038ccbebdc644eaf4a9ad" }
 block = { git = "https://github.com/Dicklesworthstone/rust-block", rev = "b39ae859d1ee8e8cb5eef6a516471f1578d26b96" }
 vello = { git = "https://github.com/lexoliu/vello", rev = "5e5f538556be16527f67379b105af82f408b747d" }
@@ -85,3 +127,10 @@ vello_hybrid = { git = "https://github.com/lexoliu/vello", rev = "d68d9e9825bcd1
 vello_common = { git = "https://github.com/lexoliu/vello", rev = "d68d9e9825bcd1ffee762323881c13a2e7a3f639" }
 vello_sparse_shaders = { git = "https://github.com/lexoliu/vello", rev = "d68d9e9825bcd1ffee762323881c13a2e7a3f639" }
 glifo = { git = "https://github.com/lexoliu/vello", rev = "d68d9e9825bcd1ffee762323881c13a2e7a3f639" }
+
+# `waterui-internal`'s `gpu` feature takes `waterui-svg` straight from this
+# repository at a pinned rev, so a crates.io patch cannot reach it. Redirect
+# that git source at this checkout — one `Svg` type in the graph, and the
+# facade's `waterui::svg` re-export is the crate under test.
+[patch."https://github.com/water-rs/svg"]
+waterui-svg = { path = "." }
