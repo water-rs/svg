@@ -113,7 +113,7 @@ waterui-video = { git = "https://github.com/water-rs/waterui", rev = "f3f58c48f5
 waterui-watcher-set = { git = "https://github.com/water-rs/waterui", rev = "f3f58c48f553c0eb198338fcfd79341e5973c0ed" }
 waterui-webview = { git = "https://github.com/water-rs/waterui", rev = "f3f58c48f553c0eb198338fcfd79341e5973c0ed" }
 waterui-svg = { path = "." }
-hydrolysis = { git = "https://github.com/water-rs/hydrolysis", rev = "603a8b56722c22e434f6036b4443ff0b12365bce" }
+hydrolysis = { git = "https://github.com/water-rs/hydrolysis", rev = "bfc274137889ea69f284edc8ec1c1831afa97e30" }
 hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", rev = "6a9981926ba3af16bed33b179365ff2d8a85ed05" }
 
 # The third-party pins below are the framework's own `[patch.crates-io]` at the
