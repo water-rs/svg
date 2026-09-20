@@ -64,10 +64,10 @@ peniko = "0.6"
 
 [dev-dependencies]
 waterui-graphics = { version = "0.5.0", features = ["cpu-scene"] }
-waterui = "0.5.0"
-waterui-testing = "0.5.0"
+waterui = { git = "https://github.com/water-rs/waterui", rev = "b25438ae309d69c8a91c6ecc2580723ed1dd792b" }
+waterui-testing = { git = "https://github.com/water-rs/waterui", rev = "b25438ae309d69c8a91c6ecc2580723ed1dd792b" }
 # The style the rendered (geometry-answering) test session is mounted with.
-hydrolysis-m3 = "0.3.0"
+hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", rev = "38499ef90b0a9e0d3b413fa78350325e88e21044" }
 pollster = "1.0"
 wgpu = "29.0.4"
 
