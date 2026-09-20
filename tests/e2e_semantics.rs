@@ -4,7 +4,7 @@ use waterui::ViewExt as _;
 use waterui::accessibility::AccessibilityRole;
 use waterui::graphics::color::Srgb;
 use waterui_svg::Svg;
-use waterui_testing::{Role, SemanticApp};
+use waterui_testing::{OffscreenApp, Role, SemanticApp};
 
 fn filled_svg_view() -> impl waterui::View {
     Svg::from_path("M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26Z", 24.0, 24.0)
@@ -71,8 +71,9 @@ fn filled_svg_exposes_accessibility_image(app: &mut SemanticApp) {
         .assert_exists();
 }
 
-#[waterui::test(resized_svg_view)]
-fn svg_intrinsic_size_yields_to_an_explicit_size(app: &mut SemanticApp) {
+// Geometry is answered by the rendered runtime only, so this one mounts offscreen.
+#[waterui::test(resized_svg_view, theme = hydrolysis_m3::Material3::defaults(), offscreen)]
+fn svg_intrinsic_size_yields_to_an_explicit_size(app: &mut OffscreenApp) {
     let bounds = app
         .query()
         .role(Role::IMAGE)
