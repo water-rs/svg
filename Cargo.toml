@@ -59,7 +59,7 @@ tracing = "0.1.44"
 # is handed a database or it parses with an empty one. They are off with no
 # effect on output; see the feature table in README.md.
 usvg = { version = "0.48.1", default-features = false }
-cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "ef46abff2e13514ce407d917af8dfb7facede174" }
+cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "06a60e96cd54e0fb16e2ff708dbbe2785f0f8bed" }
 color = "0.3.3"
 
 [dev-dependencies]
