@@ -1,6 +1,9 @@
 //! Parsed SVG documents, ready to draw into a scene.
 
+use cherenkov::kurbo::Affine;
 use waterui_core::layout::Size;
+
+use crate::tree_renderer::SvgTarget;
 
 /// A parsed SVG document.
 #[derive(Debug)]
@@ -77,21 +80,20 @@ impl SvgSceneData {
     /// Aspect ratio is preserved and the result centred, which is what an icon
     /// in a fixed-size slot wants.
     #[must_use]
-    pub fn fitting_transform(&self, width: f32, height: f32) -> kurbo::Affine {
+    pub fn fitting_transform(&self, width: f32, height: f32) -> Affine {
         let size = self.svg_tree.size();
         let scale = (width / size.width()).min(height / size.height());
         let offset_x = f64::from(size.width().mul_add(-scale, width) / 2.0);
         let offset_y = f64::from(size.height().mul_add(-scale, height) / 2.0);
-        kurbo::Affine::translate((offset_x, offset_y)) * kurbo::Affine::scale(f64::from(scale))
+        Affine::translate((offset_x, offset_y)) * Affine::scale(f64::from(scale))
     }
 
-    /// Draws this document into a scene, whichever engine backs it.
+    /// Records this document into `scene`, fitted into `width` × `height`.
     ///
-    /// Going through [`waterui_graphics::Scene2D`] rather than appending a
-    /// pre-built `vello::Scene` is what lets an icon render on an engine other
-    /// than Vello classic — the simulator has no indirect execution, and an
-    /// icon that cannot draw there takes the process down with it.
-    pub fn draw(&self, scene: &mut dyn waterui_graphics::Scene2D, width: f32, height: f32) {
+    /// `scene` is whichever Cherenkov recorder is listening — a static picture
+    /// or a live scene — so an icon renders on every backend rather than
+    /// through one engine's scene type.
+    pub fn draw<D: SvgTarget>(&self, scene: &mut D, width: f32, height: f32) {
         crate::tree_renderer::render_tree(
             scene,
             &self.svg_tree,

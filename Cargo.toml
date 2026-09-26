@@ -10,8 +10,8 @@ authors = ["Lexo Liu <me@lexo.cool>"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/water-rs/svg"
-description = "SVG rendering for WaterUI using Vello"
-keywords = ["svg", "graphics", "waterui", "vello"]
+description = "SVG rendering for WaterUI through Cherenkov"
+keywords = ["svg", "graphics", "waterui", "cherenkov"]
 categories = ["gui"]
 
 [lints.rust]
@@ -59,17 +59,14 @@ tracing = "0.1.44"
 # is handed a database or it parses with an empty one. They are off with no
 # effect on output; see the feature table in README.md.
 usvg = { version = "0.48.1", default-features = false }
-kurbo = "0.13"
-peniko = "0.6"
+cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "ef46abff2e13514ce407d917af8dfb7facede174" }
+color = "0.3.3"
 
 [dev-dependencies]
-waterui-graphics = { version = "0.5.0", features = ["cpu-scene"] }
 waterui = "0.5.0"
 waterui-testing = "0.5.0"
 # The style the rendered (geometry-answering) test session is mounted with.
 hydrolysis-m3 = "0.3.0"
-pollster = "1.0"
-wgpu = "29.0.4"
 
 [package.metadata.cargo-machete]
 ignored = ["waterui-macros"]

@@ -1,5 +1,5 @@
 use waterui_core::layout::Size;
-use waterui_graphics::{Scene2D, SceneContent};
+use waterui_graphics::{Scene, SceneContent};
 
 use crate::scene_data::SvgSceneData;
 
@@ -43,8 +43,9 @@ impl SvgSceneContent {
 }
 
 impl SceneContent for SvgSceneContent {
-    fn build_scene(&mut self, scene: &mut dyn Scene2D, width: f32, height: f32) -> bool {
-        self.scene_data.draw(scene, width, height);
+    fn record(&mut self, scene: &mut Scene<'_>) -> bool {
+        let (width, height) = (scene.width(), scene.height());
+        self.scene_data.draw(scene.recorder(), width, height);
         false
     }
 
