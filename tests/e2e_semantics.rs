@@ -1,100 +1,39 @@
-//! End-to-end accessibility-semantics tests for the `svg` component.
+//! Semantics checks for the `svg` component at its public surface.
+//!
+//! The mounted-runtime assertions this file used to carry — an `a11y_label`
+//! winning over the document's `<title>`, and an explicit `.size(…)` winning
+//! over the drawing's intrinsic size — mount through `waterui-testing`, which
+//! needs a Hydrolysis backend. No Hydrolysis revision compiles against the
+//! engine API this crate records into yet, so those checks are unreachable
+//! here and belong to the test host once it is ported. What remains is the
+//! part this crate owns: intrinsic size, and that a document actually records
+//! drawing commands.
 
-use waterui::ViewExt as _;
-use waterui::accessibility::AccessibilityRole;
-use waterui::graphics::color::Srgb;
-use waterui_svg::Svg;
-use waterui_testing::{OffscreenApp, Role, SemanticApp};
+use cherenkov::Recorder;
+use waterui_core::layout::Size;
+use waterui_graphics::SceneContent;
+use waterui_svg::SvgSceneContent;
 
-fn filled_svg_view() -> impl waterui::View {
-    Svg::from_path("M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26Z", 24.0, 24.0)
-        .tint(Srgb::new(1.0, 0.8, 0.1))
-        .a11y_role(AccessibilityRole::Image)
-        .a11y_label("Filled svg")
-}
+const TITLED_ICON: &str = include_str!("data/titled_icon.svg");
+const STROKED_ICON: &str = include_str!("data/stroked_icon.svg");
+const PAINTED_ICON: &str = include_str!("data/painted_icon.svg");
 
-fn stroke_svg_view() -> impl waterui::View {
-    Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0)
-        .tint(Srgb::WHITE)
-        .a11y_role(AccessibilityRole::Image)
-        .a11y_label("Stroke svg")
-}
-
-/// An icon whose artwork is drawn in a 24pt box, asked to occupy 8pt.
-///
-/// `.size` here must be `ViewExt`'s layout size. `Svg` used to carry an
-/// inherent `size` that reframed the artwork instead, and being inherent it
-/// won name resolution — so this is also a guard against that returning.
-fn resized_svg_view() -> impl waterui::View {
-    Svg::from_path("M12 2A10 10 0 1 0 12 22A10 10 0 1 0 12 2Z", 24.0, 24.0)
-        .tint(Srgb::WHITE)
-        .size(8.0, 8.0)
-        .a11y_role(AccessibilityRole::Image)
-        .a11y_label("Resized svg")
-}
-
-/// A document that names itself with a root `<title>`.
-fn titled_svg_view() -> impl waterui::View {
-    Svg::new(include_str!("data/titled_icon.svg"))
-}
-
-/// The same document, named by the application instead.
-fn renamed_titled_svg_view() -> impl waterui::View {
-    Svg::new(include_str!("data/titled_icon.svg")).a11y_label("Severe weather")
-}
-
-#[waterui::test(titled_svg_view)]
-fn a_titled_svg_reaches_a_screen_reader_under_its_own_title(app: &mut SemanticApp) {
-    app.query()
-        .role(Role::IMAGE)
-        .label("Warning sign")
-        .assert_exists();
-}
-
-#[waterui::test(renamed_titled_svg_view)]
-fn the_application_label_wins_over_the_title(app: &mut SemanticApp) {
-    app.query()
-        .role(Role::IMAGE)
-        .label("Severe weather")
-        .assert_exists();
-    assert!(
-        !app.query().label("Warning sign").exists(),
-        "the title must not reach the tree once the application named the drawing"
+#[test]
+fn scene_content_reports_the_documents_intrinsic_size() {
+    assert_eq!(
+        SvgSceneContent::new(TITLED_ICON).intrinsic_size(),
+        Some(Size::new(24.0, 24.0))
+    );
+    assert_eq!(
+        SvgSceneContent::new(PAINTED_ICON).intrinsic_size(),
+        Some(Size::new(48.0, 48.0))
     );
 }
 
-#[waterui::test(filled_svg_view)]
-fn filled_svg_exposes_accessibility_image(app: &mut SemanticApp) {
-    app.query()
-        .role(Role::IMAGE)
-        .label("Filled svg")
-        .assert_exists();
-}
-
-// Geometry is answered by the rendered runtime only, so this one mounts offscreen.
-#[waterui::test(resized_svg_view, theme = hydrolysis_m3::Material3::defaults(), offscreen)]
-fn svg_intrinsic_size_yields_to_an_explicit_size(app: &mut OffscreenApp) {
-    let bounds = app
-        .query()
-        .role(Role::IMAGE)
-        .label("Resized svg")
-        .single()
-        .bounds();
-
-    // An intrinsic size is an ideal, not a floor: `.size(8, 8)` wins, and the
-    // drawing stays inside the box instead of spilling over its neighbours.
-    assert!(
-        (bounds.width() - 8.0).abs() < 0.5 && (bounds.height() - 8.0).abs() < 0.5,
-        "sized svg should occupy its requested 8x8 box, got {}x{}",
-        bounds.width(),
-        bounds.height()
-    );
-}
-
-#[waterui::test(stroke_svg_view)]
-fn stroke_svg_exposes_accessibility_image(app: &mut SemanticApp) {
-    app.query()
-        .role(Role::IMAGE)
-        .label("Stroke svg")
-        .assert_exists();
+#[test]
+fn scene_content_records_drawing_commands() {
+    let mut recorder = Recorder::new();
+    SvgSceneContent::new(STROKED_ICON).build_scene(&mut recorder, 48.0, 48.0);
+    let content = recorder.finish();
+    assert!(!content.is_empty(), "a stroked icon must record commands");
 }

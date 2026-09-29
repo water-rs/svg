@@ -1,5 +1,6 @@
+use cherenkov::Recorder;
 use waterui_core::layout::Size;
-use waterui_graphics::{Scene2D, SceneContent};
+use waterui_graphics::SceneContent;
 
 use crate::scene_data::SvgSceneData;
 
@@ -43,8 +44,8 @@ impl SvgSceneContent {
 }
 
 impl SceneContent for SvgSceneContent {
-    fn build_scene(&mut self, scene: &mut dyn Scene2D, width: f32, height: f32) -> bool {
-        self.scene_data.draw(scene, width, height);
+    fn build_scene(&mut self, recorder: &mut Recorder, width: f32, height: f32) -> bool {
+        self.scene_data.draw(recorder, width, height);
         false
     }
 

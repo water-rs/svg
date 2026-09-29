@@ -10,8 +10,8 @@ authors = ["Lexo Liu <me@lexo.cool>"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/water-rs/svg"
-description = "SVG rendering for WaterUI using Vello"
-keywords = ["svg", "graphics", "waterui", "vello"]
+description = "SVG rendering for WaterUI using the Cherenkov engine"
+keywords = ["svg", "graphics", "waterui", "cherenkov"]
 categories = ["gui"]
 
 [lints.rust]
@@ -59,43 +59,40 @@ tracing = "0.1.44"
 # is handed a database or it parses with an empty one. They are off with no
 # effect on output; see the feature table in README.md.
 usvg = { version = "0.48.1", default-features = false }
-kurbo = "0.13"
-peniko = "0.6"
+cherenkov = "0.0.0"
 
 [dev-dependencies]
-waterui-graphics = { version = "0.5.0", features = ["cpu-scene"] }
-waterui = "0.5.0"
-waterui-testing = "0.5.0"
-# The style the rendered (geometry-answering) test session is mounted with.
-hydrolysis-m3 = "0.3.0"
-pollster = "1.0"
-wgpu = "29.0.4"
+# The `cpu` feature adds the `OffscreenRenderer<Raster>` the snapshot tests
+# compare the GPU render against.
+waterui-graphics = { version = "0.5.0", features = ["cpu"] }
 
 [package.metadata.cargo-machete]
 ignored = ["waterui-macros"]
 
-# Third-party forks the framework itself patches; a registry dependency does
-# not carry its own patch table, so they are repeated here so this graph
-# resolves the same sources as water-rs/waterui `dev`.
+# Registry dependencies do not carry their own patch table, so the framework's
+# pins are repeated here for this graph to resolve the same sources as
+# water-rs/waterui `dev` at the pinned revision: every `waterui-*` crate this
+# crate reaches, directly or transitively, is the same monorepo commit, and
+# the engine trio is the Cherenkov revision the port targets.
 [patch.crates-io]
-waterui-svg = { path = "." }
+waterui-core = { git = "https://github.com/water-rs/waterui", rev = "ee1a135ccde4ca91b09d261bd2b0f53d5b89566e" }
+waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "ee1a135ccde4ca91b09d261bd2b0f53d5b89566e" }
+waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "ee1a135ccde4ca91b09d261bd2b0f53d5b89566e" }
+waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "ee1a135ccde4ca91b09d261bd2b0f53d5b89566e" }
 
-# The third-party pins below are the framework's own `[patch.crates-io]` at the
-# pinned revision: the git-pinned `waterui-*` crates declare the registry
-# requirements, and a dependency's patch table does not apply downstream, so
-# this table has to carry the same forks or the graph builds upstream code the
-# framework deliberately avoids.
+cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+cherenkov-cpu = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+cherenkov-gpu = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+filtrate = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+filtrate-core = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+filtrate-derive = { git = "https://github.com/water-rs/cherenkov", rev = "7d553f19198a18f176a6af9dfc84eae1a41f1757" }
+
+# The nami `kurbo` feature Cherenkov requires is unreleased (water-rs/nami#27);
+# this revision is the one the pinned monorepo declares, and it contains the
+# engine's own pin, so one nami serves both.
+nami = { git = "https://github.com/water-rs/nami", rev = "f1db5017f5d64cb45b9b304c74ff420377258476" }
+nami-core = { git = "https://github.com/water-rs/nami", rev = "f1db5017f5d64cb45b9b304c74ff420377258476" }
+
+# Third-party forks the framework itself patches.
 xcb = { git = "https://github.com/rust-x-bindings/rust-xcb", rev = "ae3b2cd080e78173223038ccbebdc644eaf4a9ad" }
 block = { git = "https://github.com/Dicklesworthstone/rust-block", rev = "b39ae859d1ee8e8cb5eef6a516471f1578d26b96" }
-vello = { git = "https://github.com/lexoliu/vello", rev = "7f5e1ca5769a96dc4404b812e7fa0351499cd2c4" }
-vello_hybrid = { git = "https://github.com/lexoliu/vello", rev = "a01e5039c290fa869e0f6f3708e621056740f49b" }
-vello_common = { git = "https://github.com/lexoliu/vello", rev = "a01e5039c290fa869e0f6f3708e621056740f49b" }
-vello_sparse_shaders = { git = "https://github.com/lexoliu/vello", rev = "a01e5039c290fa869e0f6f3708e621056740f49b" }
-glifo = { git = "https://github.com/lexoliu/vello", rev = "a01e5039c290fa869e0f6f3708e621056740f49b" }
-
-# `waterui-internal`'s `gpu` feature takes `waterui-svg` straight from this
-# repository at a pinned rev, so a crates.io patch cannot reach it. Redirect
-# that git source at this checkout — one `Svg` type in the graph, and the
-# facade's `waterui::svg` re-export is the crate under test.
-[patch."https://github.com/water-rs/svg"]
-waterui-svg = { path = "." }
