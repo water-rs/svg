@@ -52,6 +52,7 @@ use waterui_core::layout::Size;
 use waterui_core::reactive::signal::IntoComputed;
 use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, constant};
 use waterui_graphics::Picture;
+use waterui_graphics::PictureRecording;
 use waterui_graphics::color::{Color, working};
 use waterui_layout::frame::Frame;
 
@@ -186,7 +187,7 @@ impl Svg {
     }
 
     /// Records this SVG, drawn in `color`, at its intrinsic size.
-    fn record(&self, color: &str) -> (Size, cherenkov::Picture) {
+    fn record(&self, color: &str) -> (Size, PictureRecording) {
         let scene_data = scene_data::SvgSceneData::parse(&self.build_svg_content(color));
         let size = scene_data.intrinsic_size();
         let recording = Picture::record(|scene| scene_data.draw(scene, size.width, size.height));
@@ -209,7 +210,7 @@ impl Svg {
 
     /// A picture of this SVG offering the document's own name to a screen
     /// reader.
-    fn picture(&self, size: Size, recording: impl IntoComputed<cherenkov::Picture>) -> Picture {
+    fn picture(&self, size: Size, recording: impl IntoComputed<PictureRecording>) -> Picture {
         let picture = Picture::new(size, recording);
         match self.accessible_name() {
             Some(name) => picture.labeled(name),
