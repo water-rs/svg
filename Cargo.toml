@@ -93,17 +93,17 @@ ignored = ["waterui-macros"]
 # crate reaches, directly or transitively, is the same monorepo commit, and
 # the engine trio is the Cherenkov revision the port targets.
 [patch.crates-io]
-waterui-core = { git = "https://github.com/water-rs/waterui", rev = "ad14922997f28686d04f59f79e84239183524bf7" }
-waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "ad14922997f28686d04f59f79e84239183524bf7" }
-waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "ad14922997f28686d04f59f79e84239183524bf7" }
-waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "ad14922997f28686d04f59f79e84239183524bf7" }
+waterui-core = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
+waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
+waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
+waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
 
-cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
-cherenkov-cpu = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
-cherenkov-gpu = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
-filtrate = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
-filtrate-core = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
-filtrate-derive = { git = "https://github.com/water-rs/cherenkov", rev = "a7708216db67bbf976e1fe36429a6a54cf82ba8a" }
+cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
+cherenkov-cpu = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
+cherenkov-gpu = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
+filtrate = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
+filtrate-core = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
+filtrate-derive = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
 
 # The nami `kurbo` feature Cherenkov requires is unreleased (water-rs/nami#27);
 # this revision is the one the pinned monorepo declares, and it contains the
