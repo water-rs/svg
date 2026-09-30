@@ -43,7 +43,8 @@ fn scene_content_records_drawing_commands() {
     // recorder still needs one: the CPU rasteriser's table is the cheapest.
     let engine = OffscreenRenderer::cpu().expect("the CPU rasteriser to start");
     let mut recorder = Recorder::new();
-    SvgSceneContent::new(STROKED_ICON).build_scene(&mut recorder, engine.resources(), 48.0, 48.0);
+    let mut resources = engine.resources().recording();
+    SvgSceneContent::new(STROKED_ICON).build_scene(&mut recorder, &mut resources, 48.0, 48.0);
     let content = recorder.finish();
     assert!(!content.is_empty(), "a stroked icon must record commands");
 }

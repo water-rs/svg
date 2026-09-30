@@ -1,6 +1,6 @@
 use cherenkov::Recorder;
 use waterui_core::layout::Size;
-use waterui_graphics::{SceneContent, SceneResources};
+use waterui_graphics::{RecordingResources, SceneContent};
 
 use crate::scene_data::SvgSceneData;
 
@@ -50,7 +50,7 @@ impl SceneContent for SvgSceneContent {
     fn build_scene(
         &mut self,
         recorder: &mut Recorder,
-        _resources: &SceneResources,
+        _resources: &mut RecordingResources<'_>,
         width: f32,
         height: f32,
     ) -> bool {
