@@ -1,10 +1,11 @@
 //! SVG rendering for `WaterUI`.
 //!
-//! This crate provides `Svg`, a view for rendering SVG content using GPU-accelerated
-//! rendering via `SceneView`.
+//! This crate provides `Svg`, a view for rendering SVG content through
+//! `SceneView`.
 //!
-//! A document is parsed with `usvg` and drawn through the engine-independent
-//! `Scene2D` contract, so it renders on whichever engine the backend supplies.
+//! A document is parsed with `usvg` and recorded through the engine's
+//! `cherenkov::Draw` contract, so it renders on whichever Cherenkov backend
+//! the host runs.
 //!
 //! # Text, fonts and cargo features
 //!
@@ -44,14 +45,14 @@ pub use usvg;
 pub use scene_renderer::SvgSceneContent;
 
 use alloc::string::String;
-use alloc::sync::Arc;
 
+use cherenkov::WorkingColor;
 use suiteki::Str;
 use waterui_core::layout::Size;
 use waterui_core::reactive::signal::IntoComputed;
 use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, constant};
-use waterui_graphics::color::Color;
-use waterui_graphics::{Picture, SceneRecording};
+use waterui_graphics::Picture;
+use waterui_graphics::color::{Color, working};
 use waterui_layout::frame::Frame;
 
 /// A view for rendering SVG content using GPU-accelerated rendering.
@@ -185,7 +186,7 @@ impl Svg {
     }
 
     /// Records this SVG, drawn in `color`, at its intrinsic size.
-    fn record(&self, color: &str) -> (Size, Arc<SceneRecording>) {
+    fn record(&self, color: &str) -> (Size, cherenkov::Picture) {
         let scene_data = scene_data::SvgSceneData::parse(&self.build_svg_content(color));
         let size = scene_data.intrinsic_size();
         let recording = Picture::record(|scene| scene_data.draw(scene, size.width, size.height));
@@ -208,7 +209,7 @@ impl Svg {
 
     /// A picture of this SVG offering the document's own name to a screen
     /// reader.
-    fn picture(&self, size: Size, recording: impl IntoComputed<Arc<SceneRecording>>) -> Picture {
+    fn picture(&self, size: Size, recording: impl IntoComputed<cherenkov::Picture>) -> Picture {
         let picture = Picture::new(size, recording);
         match self.accessible_name() {
             Some(name) => picture.labeled(name),
@@ -277,22 +278,20 @@ impl Svg {
         self.frame_view(self.to_reactive_picture(color_signal))
     }
 
-    /// Format a `ResolvedColor` as an SVG-compatible color string.
+    /// Format a `WorkingColor` as an SVG-compatible color string.
     ///
-    /// Converts from linear RGB to sRGB.
+    /// Converts from the linear working space to sRGB.
     /// - Opaque colors are emitted as `#rrggbb`.
     /// - Translucent colors are emitted as `rgba(r,g,b,a)`.
-    fn resolved_color_to_svg_color(
-        color: &waterui_graphics::color::ResolvedColor,
-    ) -> alloc::string::String {
-        let srgb = color.to_srgb();
+    fn working_color_to_svg_color(color: WorkingColor) -> alloc::string::String {
+        let srgb = working::to_srgb(color);
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let r = (srgb.red * 255.0).clamp(0.0, 255.0) as u8;
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let g = (srgb.green * 255.0).clamp(0.0, 255.0) as u8;
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let b = (srgb.blue * 255.0).clamp(0.0, 255.0) as u8;
-        let alpha = color.opacity.clamp(0.0, 1.0);
+        let alpha = color.components[3].clamp(0.0, 1.0);
         if alpha >= 0.999_999 {
             alloc::format!("#{r:02x}{g:02x}{b:02x}")
         } else {
@@ -304,24 +303,47 @@ impl Svg {
 impl View for Svg {
     fn body(self, env: &Environment) -> impl View {
         if let Some(tint) = self.tint.clone() {
-            let color_signal = tint
-                .resolve(env)
-                .map(|resolved| Self::resolved_color_to_svg_color(&resolved));
+            let color_signal = tint.resolve(env).map(Self::working_color_to_svg_color);
             return self.to_reactive_framed_picture(&color_signal);
         }
 
         if let Some(color_signal) = env
-            .query::<
-                waterui_graphics::color::ForegroundColor,
-                Computed<waterui_graphics::color::ResolvedColor>,
-            >()
+            .query::<waterui_graphics::color::ForegroundColor, Computed<WorkingColor>>()
             .cloned()
         {
-            return self.to_reactive_framed_picture(
-                &color_signal.map(|resolved| Self::resolved_color_to_svg_color(&resolved)),
-            );
+            return self
+                .to_reactive_framed_picture(&color_signal.map(Self::working_color_to_svg_color));
         }
 
         self.to_framed_picture("#000000")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Svg;
+
+    const TITLED_ICON: &str = include_str!("../tests/data/titled_icon.svg");
+    const PAINTED_ICON: &str = include_str!("../tests/data/painted_icon.svg");
+
+    /// A document's own `<title>` becomes the label its `Picture` offers a
+    /// screen reader; an application's `a11y_label` wins over it when the view
+    /// mounts, which is the mounted-runtime half of this check.
+    #[test]
+    fn a_titled_document_offers_its_title_as_the_pictures_label() {
+        let picture = Svg::new(TITLED_ICON).to_picture("#000000");
+        assert_eq!(
+            picture.label().map(suiteki::Str::as_str),
+            Some("Warning sign")
+        );
+    }
+
+    /// Path data and a document with no `<title>` offer nothing.
+    #[test]
+    fn an_untitled_drawing_offers_no_label() {
+        let picture = Svg::from_path("M3 12h18M3 6h18", 24.0, 24.0).to_picture("#000000");
+        assert_eq!(picture.label(), None);
+        let picture = Svg::new(PAINTED_ICON).to_picture("#000000");
+        assert_eq!(picture.label(), None);
     }
 }

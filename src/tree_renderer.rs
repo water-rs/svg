@@ -1,27 +1,67 @@
-//! Draws a parsed SVG document through the engine-independent [`Scene2D`].
+//! Draws a parsed SVG document through the engine's [`Draw`] recorder.
 //!
 //! `vello_svg` renders into a `vello::Scene` and nothing else, which ties every
-//! icon in an application to one rendering engine. That engine's compute
-//! pipeline needs indirect execution, which the iOS Simulator's Metal does not
-//! have — so an icon aborts the process there rather than drawing. Going
-//! through [`Scene2D`] instead lets the same document render on whichever
-//! engine the device can actually run.
+//! icon in an application to one rendering engine. Recording into a
+//! [`cherenkov::Draw`] instead lets the same document render on whichever
+//! Cherenkov backend the host runs — GPU or the CPU rasteriser alike — and the
+//! recording is a [`cherenkov::Content`] any engine layer can mount.
 //!
 //! The translation follows `vello_svg`'s own renderer, which is where the
 //! handling of paint order, clip paths, nested documents and flattened text
 //! comes from.
+//!
+//! One SVG semantic the engine cannot yet express: SVG composites in
+//! sRGB-encoded space (`color-interpolation` defaults to sRGB), while
+//! Cherenkov composites in its linear working space. `Group::blend_space`
+//! could mark a composite as `BlendSpace::SrgbEncoded`, but the GPU backend
+//! rejects any non-linear blend space outright, so recording one would make
+//! a document fail to render there — the gap is tracked as an engine
+//! capability issue rather than worked around here.
 
 use alloc::vec::Vec;
 
-use kurbo::{Affine, BezPath, Rect, Shape as _, Stroke};
-use peniko::color::DynamicColor;
-use peniko::{BlendMode, Brush, ColorStop, Extend, Fill, Gradient, Mix};
-use waterui_graphics::Scene2D;
+use cherenkov::kurbo::{Affine, BezPath, Point, Rect, Shape as _, Stroke};
+use cherenkov::{
+    BlendMode, Color, Draw, EvenOdd, Extend, Fixed, Group, Interpolation, LinearGradient, Paint,
+    RadialGradient, Srgb, WorkingColor,
+};
 
 use crate::usvg;
 
+/// A [`Draw`] recorder whose operands accept recorded constants — every
+/// operand this renderer produces.
+///
+/// [`StaticRecorder`][cherenkov::StaticRecorder] satisfies it because its
+/// `Value` is [`Fixed`] itself, and [`Recorder`][cherenkov::Recorder] because
+/// `Fixed` converts into its `Live` signal. Sealed to the two of them: the
+/// bounds name each `Fixed` operand type, which is what a recorder must
+/// accept for this renderer to write into it.
+pub trait RecordSvg:
+    Draw<
+        Value<BezPath>: From<Fixed<BezPath>>,
+        Value<EvenOdd<BezPath>>: From<Fixed<EvenOdd<BezPath>>>,
+        Value<Paint>: From<Fixed<Paint>>,
+        Value<Stroke>: From<Fixed<Stroke>>,
+        Value<Group>: From<Fixed<Group>>,
+        Value<Affine>: From<Fixed<Affine>>,
+    >
+{
+}
+
+impl<T> RecordSvg for T where
+    T: Draw<
+            Value<BezPath>: From<Fixed<BezPath>>,
+            Value<EvenOdd<BezPath>>: From<Fixed<EvenOdd<BezPath>>>,
+            Value<Paint>: From<Fixed<Paint>>,
+            Value<Stroke>: From<Fixed<Stroke>>,
+            Value<Group>: From<Fixed<Group>>,
+            Value<Affine>: From<Fixed<Affine>>,
+        >
+{
+}
+
 /// Draws a whole document into `scene`, positioned by `base`.
-pub fn render_tree(scene: &mut dyn Scene2D, tree: &usvg::Tree, base: Affine) {
+pub fn render_tree<D: RecordSvg>(scene: &mut D, tree: &usvg::Tree, base: Affine) {
     render_group(scene, tree.root(), base);
 }
 
@@ -31,7 +71,7 @@ pub fn render_tree(scene: &mut dyn Scene2D, tree: &usvg::Tree, base: Affine) {
 /// so the two combine per node and `base` is passed down unchanged. Handing
 /// children an identity base instead loses the document's placement for
 /// everything inside a group.
-fn render_group(scene: &mut dyn Scene2D, group: &usvg::Group, base: Affine) {
+fn render_group<D: RecordSvg>(scene: &mut D, group: &usvg::Group, base: Affine) {
     for node in group.children() {
         let transform = base * to_affine(&node.abs_transform());
         match node {
@@ -48,8 +88,8 @@ fn render_group(scene: &mut dyn Scene2D, group: &usvg::Group, base: Affine) {
     }
 }
 
-fn render_nested_group(
-    scene: &mut dyn Scene2D,
+fn render_nested_group<D: RecordSvg>(
+    scene: &mut D,
     group: &usvg::Group,
     base: Affine,
     transform: Affine,
@@ -58,60 +98,89 @@ fn render_nested_group(
     let blend = to_blend_mode(group.blend_mode());
 
     // A clip path with a single path clips to it; anything else clips to the
-    // group's bounding box, which is what `vello_svg` does and keeps the layer
-    // stack balanced either way.
-    let clip = group
-        .clip_path()
-        .and_then(|path| path.root().children().first())
-        .and_then(|node| match node {
-            usvg::Node::Path(path) => Some(to_bez_path(path)),
-            _ => None,
-        })
-        .unwrap_or_else(|| {
-            let bounds = group.layer_bounding_box();
-            let rect = Rect::from_origin_size(
-                (f64::from(bounds.x()), f64::from(bounds.y())),
-                (f64::from(bounds.width()), f64::from(bounds.height())),
-            );
-            let mut path = BezPath::new();
-            path.extend(rect.path_elements(0.1));
-            path
-        });
+    // group's bounding box, which is what `vello_svg` does. The layer
+    // transform vello applied to the clip element is the node's absolute
+    // placement, so the clip shape is carried into that space here. A group
+    // without a clip path draws its children unclipped — the bounding-box
+    // fallback never cropped anything.
+    let clip = group.clip_path().map(|clip_path| {
+        let shape = clip_path
+            .root()
+            .children()
+            .first()
+            .and_then(|node| match node {
+                usvg::Node::Path(path) => Some(to_bez_path(path)),
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                let bounds = group.layer_bounding_box();
+                let rect = Rect::from_origin_size(
+                    (f64::from(bounds.x()), f64::from(bounds.y())),
+                    (f64::from(bounds.width()), f64::from(bounds.height())),
+                );
+                let mut path = BezPath::new();
+                path.extend(rect.path_elements(0.1));
+                path
+            });
+        transform * shape
+    });
 
-    scene.push_layer(Fill::NonZero, blend, alpha, transform, &clip);
-    render_group(scene, group, base);
-    scene.pop_layer();
+    let isolated = group.opacity() != usvg::NormalizedF32::ONE || blend != BlendMode::Normal;
+    match (clip, isolated) {
+        (Some(clip), true) => {
+            scene.group(Fixed(Group::new().opacity(alpha).blend(blend)), |scene| {
+                scene.clip(Fixed(clip), |scene| render_group(scene, group, base));
+            });
+        }
+        (Some(clip), false) => {
+            scene.clip(Fixed(clip), |scene| render_group(scene, group, base));
+        }
+        (None, true) => {
+            scene.group(Fixed(Group::new().opacity(alpha).blend(blend)), |scene| {
+                render_group(scene, group, base);
+            });
+        }
+        (None, false) => render_group(scene, group, base),
+    }
 }
 
-fn render_path(scene: &mut dyn Scene2D, path: &usvg::Path, transform: Affine) {
+fn render_path<D: RecordSvg>(scene: &mut D, path: &usvg::Path, transform: Affine) {
     if !path.is_visible() {
         return;
     }
     let outline = to_bez_path(path);
 
-    let fill = || {
-        let fill = path.fill()?;
-        let (brush, brush_transform) = to_brush(fill.paint(), fill.opacity())?;
-        let rule = match fill.rule() {
-            usvg::FillRule::NonZero => Fill::NonZero,
-            usvg::FillRule::EvenOdd => Fill::EvenOdd,
-        };
-        Some((rule, brush, brush_transform))
-    };
-    let stroke = || {
-        let stroke = path.stroke()?;
-        let (brush, brush_transform) = to_brush(stroke.paint(), stroke.opacity())?;
-        Some((to_stroke(stroke), brush, brush_transform))
-    };
-
-    let draw_fill = |scene: &mut dyn Scene2D| {
-        if let Some((rule, brush, brush_transform)) = fill() {
-            scene.fill(rule, transform, &brush, brush_transform, &outline);
+    let draw_fill = |scene: &mut D| {
+        if let Some(fill) = path.fill()
+            && let Some((paint, paint_transform)) = to_paint(fill.paint(), fill.opacity())
+        {
+            let paint = match paint_transform {
+                Some(transform) => paint.transformed(transform),
+                None => paint,
+            };
+            scene.transform(Fixed(transform), |scene| match fill.rule() {
+                usvg::FillRule::NonZero => scene.fill(Fixed(outline.clone()), Fixed(paint.clone())),
+                usvg::FillRule::EvenOdd => {
+                    scene.fill(Fixed(EvenOdd(outline.clone())), Fixed(paint.clone()));
+                }
+            });
         }
     };
-    let draw_stroke = |scene: &mut dyn Scene2D| {
-        if let Some((stroke, brush, brush_transform)) = stroke() {
-            scene.stroke(&stroke, transform, &brush, brush_transform, &outline);
+    let draw_stroke = |scene: &mut D| {
+        if let Some(stroke) = path.stroke()
+            && let Some((paint, paint_transform)) = to_paint(stroke.paint(), stroke.opacity())
+        {
+            let paint = match paint_transform {
+                Some(transform) => paint.transformed(transform),
+                None => paint,
+            };
+            scene.transform(Fixed(transform), |scene| {
+                scene.stroke(
+                    Fixed(outline.clone()),
+                    Fixed(to_stroke(stroke)),
+                    Fixed(paint),
+                );
+            });
         }
     };
 
@@ -127,7 +196,7 @@ fn render_path(scene: &mut dyn Scene2D, path: &usvg::Path, transform: Affine) {
     }
 }
 
-fn render_image(scene: &mut dyn Scene2D, image: &usvg::Image, transform: Affine) {
+fn render_image<D: RecordSvg>(scene: &mut D, image: &usvg::Image, transform: Affine) {
     if !image.is_visible() {
         return;
     }
@@ -147,24 +216,24 @@ fn render_image(scene: &mut dyn Scene2D, image: &usvg::Image, transform: Affine)
     }
 }
 
-fn to_blend_mode(mode: usvg::BlendMode) -> BlendMode {
+const fn to_blend_mode(mode: usvg::BlendMode) -> BlendMode {
     match mode {
-        usvg::BlendMode::Normal => Mix::Normal.into(),
-        usvg::BlendMode::Multiply => Mix::Multiply.into(),
-        usvg::BlendMode::Screen => Mix::Screen.into(),
-        usvg::BlendMode::Overlay => Mix::Overlay.into(),
-        usvg::BlendMode::Darken => Mix::Darken.into(),
-        usvg::BlendMode::Lighten => Mix::Lighten.into(),
-        usvg::BlendMode::ColorDodge => Mix::ColorDodge.into(),
-        usvg::BlendMode::ColorBurn => Mix::ColorBurn.into(),
-        usvg::BlendMode::HardLight => Mix::HardLight.into(),
-        usvg::BlendMode::SoftLight => Mix::SoftLight.into(),
-        usvg::BlendMode::Difference => Mix::Difference.into(),
-        usvg::BlendMode::Exclusion => Mix::Exclusion.into(),
-        usvg::BlendMode::Hue => Mix::Hue.into(),
-        usvg::BlendMode::Saturation => Mix::Saturation.into(),
-        usvg::BlendMode::Color => Mix::Color.into(),
-        usvg::BlendMode::Luminosity => Mix::Luminosity.into(),
+        usvg::BlendMode::Normal => BlendMode::Normal,
+        usvg::BlendMode::Multiply => BlendMode::Multiply,
+        usvg::BlendMode::Screen => BlendMode::Screen,
+        usvg::BlendMode::Overlay => BlendMode::Overlay,
+        usvg::BlendMode::Darken => BlendMode::Darken,
+        usvg::BlendMode::Lighten => BlendMode::Lighten,
+        usvg::BlendMode::ColorDodge => BlendMode::ColorDodge,
+        usvg::BlendMode::ColorBurn => BlendMode::ColorBurn,
+        usvg::BlendMode::HardLight => BlendMode::HardLight,
+        usvg::BlendMode::SoftLight => BlendMode::SoftLight,
+        usvg::BlendMode::Difference => BlendMode::Difference,
+        usvg::BlendMode::Exclusion => BlendMode::Exclusion,
+        usvg::BlendMode::Hue => BlendMode::Hue,
+        usvg::BlendMode::Saturation => BlendMode::Saturation,
+        usvg::BlendMode::Color => BlendMode::Color,
+        usvg::BlendMode::Luminosity => BlendMode::Luminosity,
     }
 }
 
@@ -211,14 +280,14 @@ fn to_bez_path(path: &usvg::Path) -> BezPath {
 fn to_stroke(stroke: &usvg::Stroke) -> Stroke {
     Stroke::new(f64::from(stroke.width().get()))
         .with_caps(match stroke.linecap() {
-            usvg::LineCap::Butt => kurbo::Cap::Butt,
-            usvg::LineCap::Round => kurbo::Cap::Round,
-            usvg::LineCap::Square => kurbo::Cap::Square,
+            usvg::LineCap::Butt => cherenkov::kurbo::Cap::Butt,
+            usvg::LineCap::Round => cherenkov::kurbo::Cap::Round,
+            usvg::LineCap::Square => cherenkov::kurbo::Cap::Square,
         })
         .with_join(match stroke.linejoin() {
-            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => kurbo::Join::Miter,
-            usvg::LineJoin::Round => kurbo::Join::Round,
-            usvg::LineJoin::Bevel => kurbo::Join::Bevel,
+            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => cherenkov::kurbo::Join::Miter,
+            usvg::LineJoin::Round => cherenkov::kurbo::Join::Round,
+            usvg::LineJoin::Bevel => cherenkov::kurbo::Join::Bevel,
         })
         .with_miter_limit(f64::from(stroke.miterlimit().get()))
         .with_dashes(
@@ -231,15 +300,31 @@ fn to_stroke(stroke: &usvg::Stroke) -> Stroke {
         )
 }
 
-/// The paint a fill or stroke uses, with the transform that positions it.
+/// A colour from SVG's sRGB8 components, in the engine's working space.
+fn to_working_color(red: u8, green: u8, blue: u8, alpha: u8) -> WorkingColor {
+    Color::<Srgb>::new([
+        f32::from(red) / 255.0,
+        f32::from(green) / 255.0,
+        f32::from(blue) / 255.0,
+        f32::from(alpha) / 255.0,
+    ])
+    .into()
+}
+
+/// The paint a fill or stroke uses, alongside the gradient's own
+/// `gradientTransform` when it has one.
 ///
-/// A pattern paints with a whole subtree rather than a brush, which no
-/// `Scene2D` command expresses; such a shape is left undrawn rather than
-/// painted a wrong colour.
-fn to_brush(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(Brush, Option<Affine>)> {
+/// The paint transform maps paint coordinates into the shape's space — it is
+/// deliberately not the recording transform, which places the geometry; SVG
+/// keeps the two transforms separate and so does this port.
+///
+/// A pattern paints with a whole subtree rather than a paint, which no `Draw`
+/// verb expresses; such a shape is left undrawn rather than painted a wrong
+/// colour.
+fn to_paint(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(Paint, Option<Affine>)> {
     match paint {
         usvg::Paint::Color(color) => Some((
-            Brush::Solid(peniko::Color::from_rgba8(
+            Paint::Solid(to_working_color(
                 color.red,
                 color.green,
                 color.blue,
@@ -247,48 +332,45 @@ fn to_brush(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(Brush, Optio
             )),
             None,
         )),
-        usvg::Paint::LinearGradient(gradient) => {
-            let brush = Gradient::new_linear(
-                (f64::from(gradient.x1()), f64::from(gradient.y1())),
-                (f64::from(gradient.x2()), f64::from(gradient.y2())),
-            )
-            .with_extend(to_extend(gradient.spread_method()))
-            .with_stops(to_stops(gradient.stops(), opacity).as_slice());
-            Some((
-                Brush::Gradient(brush),
-                to_brush_transform(&gradient.transform()),
-            ))
-        }
-        usvg::Paint::RadialGradient(gradient) => {
-            let brush = Gradient::new_two_point_radial(
+        usvg::Paint::LinearGradient(gradient) => Some((
+            Paint::Linear(LinearGradient {
+                start: Point::new(f64::from(gradient.x1()), f64::from(gradient.y1())),
+                end: Point::new(f64::from(gradient.x2()), f64::from(gradient.y2())),
+                stops: to_stops(gradient.stops(), opacity),
+                extend: to_extend(gradient.spread_method()),
+                // SVG gradients interpolate in sRGB.
+                interpolation: Interpolation::SrgbEncoded,
+            }),
+            to_paint_transform(&gradient.transform()),
+        )),
+        usvg::Paint::RadialGradient(gradient) => Some((
+            Paint::Radial(RadialGradient {
                 // The focal point has no radius of its own in this SVG model.
-                (f64::from(gradient.fx()), f64::from(gradient.fy())),
-                0.0,
-                (f64::from(gradient.cx()), f64::from(gradient.cy())),
-                gradient.r().get(),
-            )
-            .with_extend(to_extend(gradient.spread_method()))
-            .with_stops(to_stops(gradient.stops(), opacity).as_slice());
-            Some((
-                Brush::Gradient(brush),
-                to_brush_transform(&gradient.transform()),
-            ))
-        }
+                start_center: Point::new(f64::from(gradient.fx()), f64::from(gradient.fy())),
+                start_radius: 0.0,
+                end_center: Point::new(f64::from(gradient.cx()), f64::from(gradient.cy())),
+                end_radius: f64::from(gradient.r().get()),
+                stops: to_stops(gradient.stops(), opacity),
+                extend: to_extend(gradient.spread_method()),
+                interpolation: Interpolation::SrgbEncoded,
+            }),
+            to_paint_transform(&gradient.transform()),
+        )),
         usvg::Paint::Pattern(_) => None,
     }
 }
 
-fn to_stops(stops: &[usvg::Stop], opacity: usvg::Opacity) -> Vec<ColorStop> {
+fn to_stops(stops: &[usvg::Stop], opacity: usvg::Opacity) -> Vec<cherenkov::ColorStop> {
     stops
         .iter()
-        .map(|stop| ColorStop {
+        .map(|stop| cherenkov::ColorStop {
             offset: stop.offset().get(),
-            color: DynamicColor::from_alpha_color(peniko::Color::from_rgba8(
+            color: to_working_color(
                 stop.color().red,
                 stop.color().green,
                 stop.color().blue,
                 (stop.opacity() * opacity).to_u8(),
-            )),
+            ),
         })
         .collect()
 }
@@ -301,10 +383,10 @@ const fn to_extend(spread: usvg::SpreadMethod) -> Extend {
     }
 }
 
-/// The gradient's own transform, when it has one.
+/// The gradient's own `gradientTransform`, when it has one.
 ///
-/// `None` leaves the paint on the shape's transform, which is what a gradient
+/// `None` leaves the paint in the shape's space, which is what a gradient
 /// without a `gradientTransform` wants.
-fn to_brush_transform(transform: &usvg::Transform) -> Option<Affine> {
+fn to_paint_transform(transform: &usvg::Transform) -> Option<Affine> {
     (!transform.is_identity()).then(|| to_affine(transform))
 }
