@@ -77,21 +77,22 @@ impl SvgSceneData {
     /// Aspect ratio is preserved and the result centred, which is what an icon
     /// in a fixed-size slot wants.
     #[must_use]
-    pub fn fitting_transform(&self, width: f32, height: f32) -> kurbo::Affine {
+    pub fn fitting_transform(&self, width: f32, height: f32) -> cherenkov::kurbo::Affine {
         let size = self.svg_tree.size();
         let scale = (width / size.width()).min(height / size.height());
         let offset_x = f64::from(size.width().mul_add(-scale, width) / 2.0);
         let offset_y = f64::from(size.height().mul_add(-scale, height) / 2.0);
-        kurbo::Affine::translate((offset_x, offset_y)) * kurbo::Affine::scale(f64::from(scale))
+        cherenkov::kurbo::Affine::translate((offset_x, offset_y))
+            * cherenkov::kurbo::Affine::scale(f64::from(scale))
     }
 
-    /// Draws this document into a scene, whichever engine backs it.
+    /// Records this document's drawing into `scene`.
     ///
-    /// Going through [`waterui_graphics::Scene2D`] rather than appending a
-    /// pre-built `vello::Scene` is what lets an icon render on an engine other
-    /// than Vello classic — the simulator has no indirect execution, and an
-    /// icon that cannot draw there takes the process down with it.
-    pub fn draw(&self, scene: &mut dyn waterui_graphics::Scene2D, width: f32, height: f32) {
+    /// Any [`cherenkov::Draw`] accepts the same commands — a live
+    /// `cherenkov::Recorder` a scene view mounts, or a
+    /// `cherenkov::StaticRecorder` a `Picture` is recorded with — so the
+    /// document renders on whichever Cherenkov backend the host runs.
+    pub fn draw<D: crate::tree_renderer::RecordSvg>(&self, scene: &mut D, width: f32, height: f32) {
         crate::tree_renderer::render_tree(
             scene,
             &self.svg_tree,
