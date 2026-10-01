@@ -46,12 +46,8 @@ default = []
 # out with.
 text = ["usvg/text"]
 # The mounted-runtime tests in `tests/e2e_semantics.rs`. They mount through
-# `waterui-testing`, which pulls `hydrolysis` — and no hydrolysis or
-# hydrolysis-m3 revision compiles against the pinned waterui revision yet
-# (both still implement the retired `Scene2D` contract), so this target is
-# the one piece of the crate that does not build under `--all-features`.
-# When a hydrolysis revision lands that implements the new `SceneContent`
-# contract, declare the host dev-deps below and this builds.
+# `waterui-testing` against the pinned hydrolysis / hydrolysis-m3 cutover
+# revisions, which implement the `SceneContent` contract.
 host-e2e = []
 
 [dependencies]
@@ -74,15 +70,14 @@ cherenkov = "0.0.0"
 # compare the GPU render against.
 waterui-graphics = { version = "0.5.0", features = ["cpu"] }
 
-# Dev-deps for the `host-e2e` feature — absent on purpose: every available
-# hydrolysis / hydrolysis-m3 revision still implements `Scene2D` and cannot
-# compile against the pinned waterui, so declaring any of them would poison
-# the dev graph for every test target. Restore them, pinned to the revision
-# the host port produces, when it lands:
-#
-#   waterui = "0.5.0"
-#   waterui-testing = "0.5.0"
-#   hydrolysis-m3 = "0.3.0"
+# Dev-deps for the `host-e2e` feature: `waterui-testing` mounts the view
+# against a hydrolysis host, and `hydrolysis-m3` supplies the theme the tests
+# style it with. The host crates ride the Cherenkov cutover revisions pinned
+# in the patch table below.
+waterui = "0.5.0"
+waterui-testing = "0.5.0"
+hydrolysis-m3 = "0.3.0"
+pollster = "1.0"
 
 [package.metadata.cargo-machete]
 ignored = ["waterui-macros"]
@@ -93,24 +88,110 @@ ignored = ["waterui-macros"]
 # crate reaches, directly or transitively, is the same monorepo commit, and
 # the engine trio is the Cherenkov revision the port targets.
 [patch.crates-io]
-waterui-core = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
-waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
-waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
-waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "8fd2a851f18beb65cdc3f586b9c979ff2134e042" }
+waterui-svg = { path = "." }
+# The renderer-agnostic fork pins the framework relies on. `block` declares
+# the Blocks ABI symbol as real storage; the `xcb` pin is the shared head the
+# framework's other crates take.
+block = { git = "https://github.com/Dicklesworthstone/rust-block", rev = "b39ae859d1ee8e8cb5eef6a516471f1578d26b96" }
+xcb = { git = "https://github.com/rust-x-bindings/rust-xcb", rev = "ae3b2cd080e78173223038ccbebdc644eaf4a9ad" }
 
-cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-cherenkov-cpu = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-cherenkov-gpu = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-filtrate = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-filtrate-core = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-filtrate-derive = { git = "https://github.com/water-rs/cherenkov", rev = "8d00976e5a68f3ac2e99d9265d3246b1a7c29ad6" }
-
-# The nami `kurbo` feature Cherenkov requires is unreleased (water-rs/nami#27);
-# this revision is the one the pinned monorepo declares, and it contains the
-# engine's own pin, so one nami serves both.
+# nami#26 renamed `Signal::get` to `Signal::snapshot` — a breaking change with
+# no compatibility path — so both nami crates this graph names ride the rev
+# the framework pins, and the whole graph carries one `Signal` trait.
 nami = { git = "https://github.com/water-rs/nami", rev = "f1db5017f5d64cb45b9b304c74ff420377258476" }
 nami-core = { git = "https://github.com/water-rs/nami", rev = "f1db5017f5d64cb45b9b304c74ff420377258476" }
 
-# Third-party forks the framework itself patches.
-xcb = { git = "https://github.com/rust-x-bindings/rust-xcb", rev = "ae3b2cd080e78173223038ccbebdc644eaf4a9ad" }
-block = { git = "https://github.com/Dicklesworthstone/rust-block", rev = "b39ae859d1ee8e8cb5eef6a516471f1578d26b96" }
+# The coordinated Cherenkov cutover (water-rs/hydrolysis#205). The recording
+# API, engine-owned resources, layers and GPU content all live in the
+# cherenkov workspace, which publishes nothing yet; `filtrate`/`filtrate-core`/
+# `filtrate-derive` are the members the `.filter(F)` / `.effect(E)` types ride
+# on, so every filtrate in the graph must come from this same revision or a
+# filter type built on one side is a different type on the other.
+cherenkov = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+cherenkov-cpu = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+cherenkov-gpu = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+filtrate = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+filtrate-core = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+filtrate-derive = { git = "https://github.com/water-rs/cherenkov", rev = "fd1e36660719bcf2ffecda4649c6243812f536ad" }
+
+# The framework head the port builds against: water-rs/waterui at
+# e2c5e356 — the final scene-resource API, where `build_scene` gets a
+# per-recording `RecordingResources` and names registrations through it
+# (`Registered` is opaque; `Image::replace` is unreachable through it, so a
+# new frame registers anew instead of swapping pixels in place). Every
+# `waterui-*` crate in the graph must resolve to this one rev — a registry
+# `waterui-core` beside the facade's own path dependencies gives two `View`
+# traits in one graph.
+waterui = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-assets = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-assets-core = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-controls = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-core = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-dylib = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-form = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-graphics = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-icon = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-internal = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-layout = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-locale = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-macros = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-media = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-navigation = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-shape = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-text = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-url = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-video = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-backend-core = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-inspector-protocol = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-map = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-mcp-protocol = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-preview-protocol = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-testing = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-watcher-set = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+waterui-webview = { git = "https://github.com/water-rs/waterui", rev = "e2c5e356bc46ad90fde767234c3e7b772233f8da" }
+
+# The extracted component crates the facade and the test graph name: each
+# rides the rev the framework's own patch table pins at the cutover.
+# `waterui-svg` itself is the local crate, patched at the top of the table.
+waterui-math = { git = "https://github.com/water-rs/math", rev = "f59cc09fd27f2000d36225e72662a653b5751182" }
+waterui-image = { git = "https://github.com/water-rs/image", rev = "69ae4095e15ed1ce4c80720c576bf0a36394e1a8" }
+waterui-barcode = { git = "https://github.com/water-rs/barcode", rev = "66f61c08067813bfa062b70d5da7e0acc55952fe" }
+waterui-canvas = { git = "https://github.com/water-rs/canvas", rev = "86bbeb637c2792e69f4f6ddd2d453c3d32d06bc6" }
+waterui-chart = { git = "https://github.com/water-rs/chart", rev = "ff481c3d319b7d025a1fa0c1dcdb283f92be9689" }
+waterui-map-gpu = { git = "https://github.com/water-rs/map-gpu", rev = "13e199d255a11637e03341e0a947447851eff85e" }
+waterui-video-gpu = { git = "https://github.com/water-rs/video-gpu", rev = "334460886d5e6da7841c58c82835448c26bdcf75" }
+waterui-particle = { git = "https://github.com/water-rs/particle", rev = "e27ae84666ee58c2ff4adae16d9227baf7efc3f2" }
+
+# Every waterkit crate the codec graph shares types across rides the same rev
+# — a registry `waterkit-core` beside the pinned `waterkit-codec` gives two
+# decoder types. The rev is the one the framework's own patch table pins (the codec's `software-decode` feature lives
+# there).
+waterkit-build = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-codec = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-dialog = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-fs = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-audio = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-camera = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-clipboard = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-core = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-haptic = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-location = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-permission = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-screen = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-video = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-video-container = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-video-core = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-video-player = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+waterkit-video-streaming = { git = "https://github.com/water-rs/waterkit", rev = "4863ba5b97235774a9def99a781c743e43607046" }
+
+# codec@4863ba5b asks for shaderloom's `runtime` feature, added after the
+# 0.1.2 registry release — pin the same rev as the framework's lock.
+shaderloom = { git = "https://github.com/water-rs/shaderloom", rev = "84c37c8314f1bb6d228fce30f78d94872247a18f" }
+
+# The `host-e2e` host stack rides the coordinated cutover revisions: the
+# hydrolysis port that implements `SceneContent`, and the Material 3 theme
+# ported beside it. The vello fork is the one the framework's patch table
+# carries for the crates in the host graph that still draw through vello.
+hydrolysis = { git = "https://github.com/water-rs/hydrolysis", rev = "783208625bf5e1abdcb8c7a5dc241e599cccd4c8" }
+hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", rev = "af90237154cd26080e89bf0ef0ab9828f0bb9a67" }
+vello = { git = "https://github.com/lexoliu/vello", rev = "76292095f408cf04b901023c2053f8d424652f06" }

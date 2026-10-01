@@ -9,12 +9,8 @@
 //!   feature. They mount the view through `waterui-testing` against a
 //!   Hydrolysis backend — the `.a11y_label` over the document's `<title>`,
 //!   the `.size(…)` over intrinsic size, the image role each icon exposes —
-//!   and they cannot build yet: `waterui-testing` pulls `hydrolysis`, and
-//!   no hydrolysis or hydrolysis-m3 revision compiles against the pinned
-//!   waterui revision (`ee1a135`), since both still implement the retired
-//!   `Scene2D` contract. Enabling the feature today fails this target with
-//!   unresolved imports, by design: the dev-deps named in `Cargo.toml` go
-//!   in once a hydrolysis revision compiles against the new API.
+//!   on the pinned hydrolysis / hydrolysis-m3 cutover revisions, which
+//!   implement the `SceneContent` contract.
 
 use cherenkov::Recorder;
 use waterui_core::layout::Size;
