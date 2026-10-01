@@ -5,12 +5,12 @@
 //! - The crate-level assertions below, which run at the pinned
 //!   engine/API revisions — intrinsic size, and that a document records
 //!   drawing commands.
-//! - The mounted-runtime checks in [`mounted`], behind the `host-e2e`
-//!   feature. They mount the view through `waterui-testing` against a
-//!   Hydrolysis backend — the `.a11y_label` over the document's `<title>`,
-//!   the `.size(…)` over intrinsic size, the image role each icon exposes —
-//!   on the pinned hydrolysis / hydrolysis-m3 cutover revisions, which
-//!   implement the `SceneContent` contract.
+//! - The mounted-runtime checks in [`mounted`], which mount the view
+//!   through `waterui-testing` against a Hydrolysis backend — the
+//!   `.a11y_label` over the document's `<title>`, the `.size(…)` over
+//!   intrinsic size, the image role each icon exposes — on the pinned
+//!   hydrolysis / hydrolysis-m3 cutover revisions, which implement the
+//!   `SceneContent` contract.
 
 use cherenkov::Recorder;
 use waterui_core::layout::Size;
@@ -45,9 +45,7 @@ fn scene_content_records_drawing_commands() {
     assert!(!content.is_empty(), "a stroked icon must record commands");
 }
 
-/// The mounted-runtime half of the semantics contract. Enabled by the
-/// `host-e2e` feature once the test host can build at the pins.
-#[cfg(feature = "host-e2e")]
+/// The mounted-runtime half of the semantics contract.
 mod mounted {
     use waterui::ViewExt as _;
     use waterui::accessibility::AccessibilityRole;
