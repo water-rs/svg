@@ -1,5 +1,6 @@
+use cherenkov::Recorder;
 use waterui_core::layout::Size;
-use waterui_graphics::{Scene2D, SceneContent};
+use waterui_graphics::{RecordingResources, SceneContent};
 
 use crate::scene_data::SvgSceneData;
 
@@ -43,8 +44,17 @@ impl SvgSceneContent {
 }
 
 impl SceneContent for SvgSceneContent {
-    fn build_scene(&mut self, scene: &mut dyn Scene2D, width: f32, height: f32) -> bool {
-        self.scene_data.draw(scene, width, height);
+    // The renderer registers nothing: icon geometry is curves and gradients,
+    // and the raster `<image>` case stays undecoded by design (see
+    // tree_renderer::render_image).
+    fn build_scene(
+        &mut self,
+        recorder: &mut Recorder,
+        _resources: &mut RecordingResources<'_>,
+        width: f32,
+        height: f32,
+    ) -> bool {
+        self.scene_data.draw(recorder, width, height);
         false
     }
 

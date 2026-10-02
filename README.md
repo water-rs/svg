@@ -1,6 +1,6 @@
 # waterui-svg
 
-High-performance SVG rendering for WaterUI using Vello.
+High-performance SVG rendering for WaterUI using Cherenkov.
 
 ## Text, fonts and cargo features
 
