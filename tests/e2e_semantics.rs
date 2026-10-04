@@ -12,7 +12,7 @@
 //!   hydrolysis / hydrolysis-m3 cutover revisions, which implement the
 //!   `SceneContent` contract.
 
-use cherenkov::Recorder;
+use cherenkov::{Content, LayoutSize};
 use waterui_core::layout::Size;
 use waterui_graphics::{OffscreenRenderer, SceneContent};
 use waterui_svg::SvgSceneContent;
@@ -36,12 +36,12 @@ fn scene_content_reports_the_documents_intrinsic_size() {
 #[test]
 fn scene_content_records_drawing_commands() {
     // Content registers resources against the host's engine, so a bare
-    // recorder still needs one: the CPU rasteriser's table is the cheapest.
+    // recording still needs one: the CPU rasteriser's table is the cheapest.
     let engine = OffscreenRenderer::cpu().expect("the CPU rasteriser to start");
-    let mut recorder = Recorder::new();
     let mut resources = engine.resources().recording();
-    SvgSceneContent::new(STROKED_ICON).build_scene(&mut recorder, &mut resources, 48.0, 48.0);
-    let content = recorder.finish();
+    let content = Content::record(&LayoutSize::new(), |recorder| {
+        SvgSceneContent::new(STROKED_ICON).build_scene(recorder, &mut resources, 48.0, 48.0);
+    });
     assert!(!content.is_empty(), "a stroked icon must record commands");
 }
 

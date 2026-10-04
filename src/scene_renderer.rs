@@ -58,6 +58,13 @@ impl SceneContent for SvgSceneContent {
         false
     }
 
+    // Everything this content owns is semantic source: the parsed `usvg::Tree`
+    // is engine-agnostic geometry, and `build_scene` records it fresh on every
+    // frame. There are no registrations, recordings or other engine-bound
+    // values to drop — nothing here survives a build_scene call, so a rebuild
+    // only has to keep the source it already retains.
+    fn rebuild_for_engine(&mut self) {}
+
     fn intrinsic_size(&self) -> Option<Size> {
         Some(self.scene_data.intrinsic_size())
     }
