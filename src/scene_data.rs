@@ -77,21 +77,25 @@ impl SvgSceneData {
     /// Aspect ratio is preserved and the result centred, which is what an icon
     /// in a fixed-size slot wants.
     #[must_use]
-    pub fn fitting_transform(&self, width: f32, height: f32) -> cherenkov::kurbo::Affine {
+    pub fn fitting_transform(
+        &self,
+        width: f32,
+        height: f32,
+    ) -> waterui_graphics::draw::kurbo::Affine {
         let size = self.svg_tree.size();
         let scale = (width / size.width()).min(height / size.height());
         let offset_x = f64::from(size.width().mul_add(-scale, width) / 2.0);
         let offset_y = f64::from(size.height().mul_add(-scale, height) / 2.0);
-        cherenkov::kurbo::Affine::translate((offset_x, offset_y))
-            * cherenkov::kurbo::Affine::scale(f64::from(scale))
+        waterui_graphics::draw::kurbo::Affine::translate((offset_x, offset_y))
+            * waterui_graphics::draw::kurbo::Affine::scale(f64::from(scale))
     }
 
     /// Records this document's drawing into `scene`.
     ///
-    /// Any [`cherenkov::Draw`] accepts the same commands — a live
-    /// `cherenkov::Recorder` a scene view mounts, or a
-    /// `cherenkov::StaticRecorder` a `Picture` is recorded with — so the
-    /// document renders on whichever Cherenkov backend the host runs.
+    /// Any [`waterui_graphics::draw::Draw`] accepts the same commands — a live
+    /// `waterui_graphics::draw::Recorder` a scene view mounts, or a
+    /// `waterui_graphics::draw::StaticRecorder` a `Picture` is recorded with —
+    /// so the document renders on whichever scene backend the host runs.
     pub fn draw<D: crate::tree_renderer::RecordSvg>(&self, scene: &mut D, width: f32, height: f32) {
         crate::tree_renderer::render_tree(
             scene,

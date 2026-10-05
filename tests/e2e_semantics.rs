@@ -12,8 +12,8 @@
 //!   hydrolysis / hydrolysis-m3 cutover revisions, which implement the
 //!   `SceneContent` contract.
 
-use cherenkov::{Content, LayoutSize};
 use waterui_core::layout::Size;
+use waterui_graphics::draw::{Content, LayoutSize};
 use waterui_graphics::{OffscreenRenderer, SceneContent};
 use waterui_svg::SvgSceneContent;
 

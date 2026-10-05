@@ -1,5 +1,5 @@
-use cherenkov::Recorder;
 use waterui_core::layout::Size;
+use waterui_graphics::draw::Recorder;
 use waterui_graphics::{RecordingResources, SceneContent};
 
 use crate::scene_data::SvgSceneData;
