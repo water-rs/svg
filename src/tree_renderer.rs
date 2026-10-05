@@ -2,9 +2,10 @@
 //!
 //! `vello_svg` renders into a `vello::Scene` and nothing else, which ties every
 //! icon in an application to one rendering engine. Recording into a
-//! [`cherenkov::Draw`] instead lets the same document render on whichever
-//! Cherenkov backend the host runs — GPU or the CPU rasteriser alike — and the
-//! recording is a [`cherenkov::Content`] any engine layer can mount.
+//! [`waterui_graphics::draw::Draw`] instead lets the same document render on
+//! whichever scene backend the host runs — GPU or the CPU rasteriser alike —
+//! and the recording is a [`waterui_graphics::draw::Content`] any scene layer
+//! can mount.
 //!
 //! The translation follows `vello_svg`'s own renderer, which is where the
 //! handling of paint order, clip paths, nested documents and flattened text
@@ -20,10 +21,10 @@
 
 use alloc::vec::Vec;
 
-use cherenkov::kurbo::{Affine, BezPath, Point, Rect, Shape as _, Stroke};
-use cherenkov::{
-    BlendMode, Color, Draw, EvenOdd, Extend, Fixed, Group, Interpolation, LinearGradient, Paint,
-    RadialGradient, Srgb, WorkingColor,
+use waterui_graphics::draw::kurbo::{Affine, BezPath, Cap, Join, Point, Rect, Shape as _, Stroke};
+use waterui_graphics::draw::{
+    BlendMode, Color, ColorStop, Draw, EvenOdd, Extend, Fixed, Group, Interpolation,
+    LinearGradient, Paint, RadialGradient, Srgb, WorkingColor,
 };
 
 use crate::usvg;
@@ -31,11 +32,12 @@ use crate::usvg;
 /// A [`Draw`] recorder whose operands accept recorded constants — every
 /// operand this renderer produces.
 ///
-/// [`StaticRecorder`][cherenkov::StaticRecorder] satisfies it because its
-/// `Value` is [`Fixed`] itself, and [`Recorder`][cherenkov::Recorder] because
-/// `Fixed` converts into its `Live` signal. Sealed to the two of them: the
-/// bounds name each `Fixed` operand type, which is what a recorder must
-/// accept for this renderer to write into it.
+/// [`StaticRecorder`][waterui_graphics::draw::StaticRecorder] satisfies it
+/// because its `Value` is [`Fixed`] itself, and
+/// [`Recorder`][waterui_graphics::draw::Recorder] because `Fixed` converts
+/// into its `Live` signal. Sealed to the two of them: the bounds name each
+/// `Fixed` operand type, which is what a recorder must accept for this
+/// renderer to write into it.
 pub trait RecordSvg:
     Draw<
         Value<BezPath>: From<Fixed<BezPath>>,
@@ -280,14 +282,14 @@ fn to_bez_path(path: &usvg::Path) -> BezPath {
 fn to_stroke(stroke: &usvg::Stroke) -> Stroke {
     Stroke::new(f64::from(stroke.width().get()))
         .with_caps(match stroke.linecap() {
-            usvg::LineCap::Butt => cherenkov::kurbo::Cap::Butt,
-            usvg::LineCap::Round => cherenkov::kurbo::Cap::Round,
-            usvg::LineCap::Square => cherenkov::kurbo::Cap::Square,
+            usvg::LineCap::Butt => Cap::Butt,
+            usvg::LineCap::Round => Cap::Round,
+            usvg::LineCap::Square => Cap::Square,
         })
         .with_join(match stroke.linejoin() {
-            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => cherenkov::kurbo::Join::Miter,
-            usvg::LineJoin::Round => cherenkov::kurbo::Join::Round,
-            usvg::LineJoin::Bevel => cherenkov::kurbo::Join::Bevel,
+            usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => Join::Miter,
+            usvg::LineJoin::Round => Join::Round,
+            usvg::LineJoin::Bevel => Join::Bevel,
         })
         .with_miter_limit(f64::from(stroke.miterlimit().get()))
         .with_dashes(
@@ -360,10 +362,10 @@ fn to_paint(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(Paint, Optio
     }
 }
 
-fn to_stops(stops: &[usvg::Stop], opacity: usvg::Opacity) -> Vec<cherenkov::ColorStop> {
+fn to_stops(stops: &[usvg::Stop], opacity: usvg::Opacity) -> Vec<ColorStop> {
     stops
         .iter()
-        .map(|stop| cherenkov::ColorStop {
+        .map(|stop| ColorStop {
             offset: stop.offset().get(),
             color: to_working_color(
                 stop.color().red,

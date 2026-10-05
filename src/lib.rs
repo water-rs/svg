@@ -3,9 +3,9 @@
 //! This crate provides `Svg`, a view for rendering SVG content through
 //! `SceneView`.
 //!
-//! A document is parsed with `usvg` and recorded through the engine's
-//! `cherenkov::Draw` contract, so it renders on whichever Cherenkov backend
-//! the host runs.
+//! A document is parsed with `usvg` and recorded through
+//! `waterui_graphics::draw`'s `Draw` contract, so it renders on whichever
+//! scene backend the host runs.
 //!
 //! # Text, fonts and cargo features
 //!
@@ -46,7 +46,6 @@ pub use scene_renderer::SvgSceneContent;
 
 use alloc::string::String;
 
-use cherenkov::WorkingColor;
 use suiteki::Str;
 use waterui_core::layout::Size;
 use waterui_core::reactive::signal::IntoComputed;
@@ -54,6 +53,7 @@ use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, cons
 use waterui_graphics::Picture;
 use waterui_graphics::PictureRecording;
 use waterui_graphics::color::{Color, working};
+use waterui_graphics::draw::WorkingColor;
 use waterui_layout::frame::Frame;
 
 /// A view for rendering SVG content using GPU-accelerated rendering.
