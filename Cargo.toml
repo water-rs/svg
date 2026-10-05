@@ -11,7 +11,7 @@ license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/water-rs/svg"
 description = "SVG rendering for WaterUI"
-keywords = ["svg", "graphics", "waterui", "cherenkov"]
+keywords = ["svg", "graphics", "waterui"]
 categories = ["gui"]
 
 [lints.rust]
@@ -48,9 +48,9 @@ text = ["usvg/text"]
 
 # The requirements below are the versions the pinned framework revision
 # declares; they move to the published lines when the `[patch.crates-io]`
-# pins drop after the release. A lower requirement cannot resolve to a
-# newer patch — cargo checks a patch's declared version against the
-# requirement.
+# pins drop after the release. They are also the floor this crate needs:
+# `waterui_graphics::draw` and the `SceneContent` contract it implements
+# exist only on these versions.
 [dependencies]
 waterui-core = "0.5.1"
 waterui-macros = "0.5.1"
