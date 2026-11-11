@@ -23,7 +23,12 @@ impl Document {
     /// what an icon wants — the artwork is geometry, and it looks the same on
     /// every backend and every device. To draw a document whose text matters,
     /// hand the fonts in with [`Document::parse_with_fonts`].
-    pub fn parse(first: &str, second: &str) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// When the markup is not an SVG document, a zero or missing size
+    /// included.
+    pub fn parse(first: &str, second: &str) -> Result<Self, usvg::Error> {
         Self::parse_with_options(first, second, &usvg::Options::default())
     }
 
@@ -36,12 +41,16 @@ impl Document {
     /// reads the operating system's font catalogue, so an application that
     /// wants system fonts loads them into the database itself and passes the
     /// result here.
+    ///
+    /// # Errors
+    ///
+    /// As [`Document::parse`].
     #[cfg(feature = "text")]
     pub fn parse_with_fonts(
         first: &str,
         second: &str,
         fonts: alloc::sync::Arc<usvg::fontdb::Database>,
-    ) -> Self {
+    ) -> Result<Self, usvg::Error> {
         Self::parse_with_options(
             first,
             second,
@@ -52,25 +61,15 @@ impl Document {
         )
     }
 
-    fn parse_with_options(first: &str, second: &str, options: &usvg::Options<'_>) -> Self {
-        let parse = |markup: &str| {
-            let tree = usvg::Tree::from_str(markup, options).expect("failed to parse SVG content");
-            let size = tree.size();
-            assert!(
-                size.width().is_finite()
-                    && size.height().is_finite()
-                    && size.width() > 0.0
-                    && size.height() > 0.0,
-                "SVG must have positive finite dimensions, got {}x{}",
-                size.width(),
-                size.height()
-            );
-            tree
-        };
-        Self {
-            first: parse(first),
-            second: parse(second),
-        }
+    fn parse_with_options(
+        first: &str,
+        second: &str,
+        options: &usvg::Options<'_>,
+    ) -> Result<Self, usvg::Error> {
+        Ok(Self {
+            first: usvg::Tree::from_str(first, options)?,
+            second: usvg::Tree::from_str(second, options)?,
+        })
     }
 
     /// The tree parsed with the first marker colour.
@@ -85,8 +84,8 @@ impl Document {
 
     /// The document's own size, from its `viewBox` / `width` / `height`.
     ///
-    /// This is the size an SVG *is*: `parse` has already established it is finite
-    /// and positive, so an icon with no frame around it measures at the size its
+    /// This is the size an SVG *is*: `usvg` parses only a finite, positive one,
+    /// so an icon with no frame around it measures at the size its
     /// author drew, and one given a single axis keeps this document's aspect ratio.
     pub fn intrinsic_size(&self) -> Size {
         let size = self.first.size();
@@ -137,7 +136,29 @@ mod tests {
     const ROBOTO: &[u8] = include_bytes!("../tests/fonts/Roboto-Regular.ttf");
 
     fn parse(content: &str) -> Document {
-        Document::parse(content, content)
+        Document::parse(content, content).expect("the fixture is a drawable SVG")
+    }
+
+    /// Markup that is not SVG is an error, not a panic.
+    #[test]
+    fn markup_that_does_not_parse_is_an_error() {
+        let markup = "<svg this is not markup";
+        let result = Document::parse(markup, markup);
+        assert!(
+            matches!(result, Err(usvg::Error::ParsingFailed(_))),
+            "{result:?}"
+        );
+    }
+
+    /// A document with no area to draw in is an error, not a panic.
+    #[test]
+    fn a_document_without_a_size_is_an_error() {
+        let markup = r#"<svg xmlns="http://www.w3.org/2000/svg" width="0" height="10"/>"#;
+        let result = Document::parse(markup, markup);
+        assert!(
+            matches!(result, Err(usvg::Error::InvalidSize)),
+            "{result:?}"
+        );
     }
 
     /// What a parsed document actually contains, counted node by node.
@@ -249,7 +270,10 @@ mod tests {
         let fonts = alloc::sync::Arc::new(fonts);
 
         for (fixture, content) in [("generic", GENERIC_FAMILY), ("named", NAMED_FAMILY)] {
-            let census = Census::of(&Document::parse_with_fonts(content, content, fonts.clone()));
+            let census = Census::of(
+                &Document::parse_with_fonts(content, content, fonts.clone())
+                    .expect("the fixture is a drawable SVG"),
+            );
             assert_eq!(census.texts, 1, "{fixture} family fixture should lay out");
             assert!(
                 census.text_outlines >= 1 && census.text_outline_segments >= 20,
