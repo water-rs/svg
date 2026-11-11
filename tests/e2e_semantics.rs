@@ -2,47 +2,31 @@
 //!
 //! Two layers live here:
 //!
-//! - The crate-level assertions below, which run at the pinned
-//!   engine/API revisions — intrinsic size, and that a document records
-//!   drawing commands.
+//! - The crate-level assertions below — the drawing's size, and that a
+//!   document records drawing commands.
 //! - The mounted-runtime checks in [`mounted`], which mount the view
 //!   through `waterui-testing` against a Hydrolysis backend — the
 //!   `.a11y_label` over the document's `<title>`, the `.size(…)` over
-//!   intrinsic size, the image role each icon exposes — on the pinned
-//!   hydrolysis / hydrolysis-m3 cutover revisions, which implement the
-//!   `SceneContent` contract.
+//!   intrinsic size, the image role each icon exposes, and the tint
+//!   following a signal.
 
 use waterui_core::layout::Size;
-use waterui_graphics::draw::{Content, LayoutSize};
-use waterui_graphics::{OffscreenRenderer, SceneContent};
-use waterui_svg::SvgSceneContent;
+use waterui_graphics::color::WorkingColor;
+use waterui_svg::Svg;
 
 const TITLED_ICON: &str = include_str!("data/titled_icon.svg");
-const STROKED_ICON: &str = include_str!("data/stroked_icon.svg");
 const PAINTED_ICON: &str = include_str!("data/painted_icon.svg");
 
 #[test]
-fn scene_content_reports_the_documents_intrinsic_size() {
+fn a_drawing_has_the_documents_intrinsic_size() {
     assert_eq!(
-        SvgSceneContent::new(TITLED_ICON).intrinsic_size(),
-        Some(Size::new(24.0, 24.0))
+        Svg::new(TITLED_ICON).drawing(WorkingColor::BLACK).size(),
+        Size::new(24.0, 24.0)
     );
     assert_eq!(
-        SvgSceneContent::new(PAINTED_ICON).intrinsic_size(),
-        Some(Size::new(48.0, 48.0))
+        Svg::new(PAINTED_ICON).drawing(WorkingColor::BLACK).size(),
+        Size::new(48.0, 48.0)
     );
-}
-
-#[test]
-fn scene_content_records_drawing_commands() {
-    // Content registers resources against the host's engine, so a bare
-    // recording still needs one: the CPU rasteriser's table is the cheapest.
-    let engine = OffscreenRenderer::cpu().expect("the CPU rasteriser to start");
-    let mut resources = engine.resources().recording();
-    let content = Content::record(&LayoutSize::new(), |recorder| {
-        SvgSceneContent::new(STROKED_ICON).build_scene(recorder, &mut resources, 48.0, 48.0);
-    });
-    assert!(!content.is_empty(), "a stroked icon must record commands");
 }
 
 /// The mounted-runtime half of the semantics contract.

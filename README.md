@@ -11,7 +11,7 @@ every backend and on a device with no font catalogue at all.
 
 | Feature | Default | Effect |
 | --- | --- | --- |
-| `text` | off | Enables `usvg/text`, which lays `<text>` out into outline paths, and the `SvgSceneContent::with_fonts` constructor that gives the parser a font database to lay it out with. Pulls in `fontdb`, `rustybuzz`, `unicode-bidi`, `unicode-script` and `unicode-vo`. |
+| `text` | off | Enables `usvg/text`, which lays `<text>` out into outline paths, and the `Svg::fonts` setter that gives the parser a font database to lay it out with. Pulls in `fontdb`, `rustybuzz`, `unicode-bidi`, `unicode-script` and `unicode-vo`. |
 
 `usvg` is depended on with `default-features = false`, so its own defaults are
 named here rather than inherited:
@@ -25,9 +25,18 @@ named here rather than inherited:
 An application that wants the operating system's fonts owns that decision
 itself: it builds a `fontdb::Database` (with whichever of `fontdb`'s own
 filesystem features it wants), fills it, and passes it to
-`SvgSceneContent::with_fonts`. Without fonts — and that includes the `Svg` view,
-which is the icon primitive and always parses without them — a `<text>` element
-is dropped during parsing and draws nothing.
+`Svg::fonts`. Without fonts — the default, since `Svg` is the icon primitive —
+a `<text>` element is dropped during parsing and draws nothing.
+
+## Tint
+
+`Svg` draws in its own colours except where the artwork asks for the colour of
+the view around it: `currentColor`, or the fill or stroke of path data
+(`Svg::from_path`, `Svg::from_stroke_path`). That colour is the tint, from
+`.tint(…)` or else the environment's foreground colour. It is a live paint: a
+tint that follows a signal repaints the drawing in place and records nothing
+again. `Svg::drawing` records the same drawing, with a tint fixed, into a
+`waterui_graphics::canvas::Drawing`.
 
 ## Accessible name
 
