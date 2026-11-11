@@ -170,16 +170,16 @@ impl Svg {
     /// goes.
     fn markup(&self, marker: &str) -> String {
         let content = self.content.as_str();
+        if content.trim_start().starts_with('<') {
+            // Full SVG markup sizes itself; the tint reaches what asks for
+            // `currentColor`.
+            return content.replace("currentColor", marker);
+        }
         let (Some(width), Some(height)) = (self.width, self.height) else {
-            // Assume full SVG content.
+            // Path data without dimensions is passed through as is.
             return content.to_string();
         };
-        if content.trim_start().starts_with('<') {
-            // Full SVG markup: support tint only for currentColor-driven assets.
-            content.replace("currentColor", marker)
-        } else {
-            path_markup(content, width, height, self.stroke, marker)
-        }
+        path_markup(content, width, height, self.stroke, marker)
     }
 
     /// Parses this SVG, twice: once with each marker colour at the tint, so

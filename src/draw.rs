@@ -775,4 +775,21 @@ mod tests {
         assert_eq!(tinted.snapshot(), Paint::Color(green));
         assert_ne!(own.snapshot(), Paint::Color(green));
     }
+
+    /// Full markup takes its size from its own root element, and its
+    /// `currentColor` follows the tint all the same.
+    #[test]
+    fn full_markup_without_a_viewbox_override_follows_the_tint() {
+        let svg = Svg::new(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
+                <rect width="8" height="8" fill="currentColor"/>
+            </svg>"#,
+        );
+        let tint = binding(RED);
+        let recording = record(&svg, &tint.computed());
+        let [tinted] = &recording.paints[..] else {
+            panic!("one shape has one paint");
+        };
+        assert_eq!(tinted.snapshot(), Paint::Color(RED));
+    }
 }
