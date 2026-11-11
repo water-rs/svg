@@ -45,6 +45,11 @@ fn artifacts_dir() -> PathBuf {
     dir
 }
 
+/// `svg` recorded in `tint`; every fixture here is a drawable document.
+fn drawing(svg: &Svg, tint: WorkingColor) -> Drawing {
+    svg.drawing(tint).expect("the fixture is a drawable SVG")
+}
+
 /// `drawing` on white, in a box of its own size: the images are reviewed by
 /// eye, and a transparent ground lets a hole read as the absence it is.
 fn on_white(drawing: &Drawing) -> Drawing {
@@ -99,7 +104,11 @@ fn gpu_and_cpu_render_an_svg() {
         (GENERIC_FAMILY_TEXT, "text_generic_family", 3.0),
         (NAMED_FAMILY_TEXT, "text_named_family", 3.0),
     ] {
-        render_both(&Svg::new(content).drawing(WorkingColor::BLACK), scale, name);
+        render_both(
+            &drawing(&Svg::new(content), WorkingColor::BLACK),
+            scale,
+            name,
+        );
     }
 }
 
@@ -109,25 +118,30 @@ fn gpu_and_cpu_render_an_svg() {
 #[test]
 fn the_tint_paints_what_asks_for_it() {
     let svg = Svg::new(TINTED_ICON).viewbox(96.0, 32.0);
-    render_both(&svg.drawing(ORANGE), 6.0, "tinted_orange");
-    render_both(&svg.drawing(TEAL), 6.0, "tinted_teal");
+    render_both(&drawing(&svg, ORANGE), 6.0, "tinted_orange");
+    render_both(&drawing(&svg, TEAL), 6.0, "tinted_teal");
 }
 
 /// Path data is drawn in the tint, filled or stroked.
 #[test]
 fn path_data_is_drawn_in_the_tint() {
     render_both(
-        &Svg::from_path(
-            "M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26Z",
-            24.0,
-            24.0,
-        )
-        .drawing(ORANGE),
+        &drawing(
+            &Svg::from_path(
+                "M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26Z",
+                24.0,
+                24.0,
+            ),
+            ORANGE,
+        ),
         8.0,
         "path_filled",
     );
     render_both(
-        &Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0).drawing(TEAL),
+        &drawing(
+            &Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0),
+            TEAL,
+        ),
         8.0,
         "path_stroked",
     );
@@ -152,9 +166,7 @@ fn text_draws_when_the_caller_supplies_fonts() {
         (GENERIC_FAMILY_TEXT, "text_generic_family"),
         (NAMED_FAMILY_TEXT, "text_named_family"),
     ] {
-        let drawing = Svg::new(content)
-            .fonts(fonts.clone())
-            .drawing(WorkingColor::BLACK);
+        let drawing = drawing(&Svg::new(content).fonts(fonts.clone()), WorkingColor::BLACK);
         assert_eq!(drawing.size(), Size::new(96.0, 32.0));
         render_both(&drawing, 3.0, &format!("{name}_with_fonts"));
     }

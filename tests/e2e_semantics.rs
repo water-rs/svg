@@ -20,11 +20,17 @@ const PAINTED_ICON: &str = include_str!("data/painted_icon.svg");
 #[test]
 fn a_drawing_has_the_documents_intrinsic_size() {
     assert_eq!(
-        Svg::new(TITLED_ICON).drawing(WorkingColor::BLACK).size(),
+        Svg::new(TITLED_ICON)
+            .drawing(WorkingColor::BLACK)
+            .expect("the fixture is a drawable SVG")
+            .size(),
         Size::new(24.0, 24.0)
     );
     assert_eq!(
-        Svg::new(PAINTED_ICON).drawing(WorkingColor::BLACK).size(),
+        Svg::new(PAINTED_ICON)
+            .drawing(WorkingColor::BLACK)
+            .expect("the fixture is a drawable SVG")
+            .size(),
         Size::new(48.0, 48.0)
     );
 }

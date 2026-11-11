@@ -608,7 +608,8 @@ mod tests {
     /// The paints of `svg`, drawn once with the tint `tint`.
     fn record(svg: &Svg, tint: &Computed<WorkingColor>) -> Recording {
         let mut recording = Recording::default();
-        render(&mut recording, &svg.document(), tint);
+        let document = svg.document().expect("the fixture is a drawable SVG");
+        render(&mut recording, &document, tint);
         recording
     }
 

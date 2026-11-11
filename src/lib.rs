@@ -44,7 +44,7 @@ use alloc::string::String;
 use suiteki::Str;
 use waterui_core::layout::Size;
 use waterui_core::reactive::SignalExt as _;
-use waterui_core::{AnyView, Computed, Environment, View};
+use waterui_core::{AnyView, Computed, Environment, View, contract_violation};
 use waterui_graphics::canvas::{Canvas, Drawing};
 use waterui_graphics::color::{Color, ForegroundColor, WorkingColor};
 use waterui_layout::frame::Frame;
@@ -184,7 +184,7 @@ impl Svg {
 
     /// Parses this SVG, twice: once with each marker colour at the tint, so
     /// that the drawing can tell the tint from the document's own colours.
-    fn document(&self) -> Document {
+    fn document(&self) -> Result<Document, usvg::Error> {
         let first = self.markup(FIRST_MARKER);
         let second = self.markup(SECOND_MARKER);
         #[cfg(feature = "text")]
@@ -199,12 +199,16 @@ impl Svg {
     ///
     /// A drawing is constants, so a tint that should follow a signal draws the
     /// `Svg` view instead.
-    #[must_use]
-    pub fn drawing(&self, tint: WorkingColor) -> Drawing {
-        let document = self.document();
-        Drawing::record(document.intrinsic_size(), |cx| {
+    ///
+    /// # Errors
+    ///
+    /// When the markup is not an SVG document, a zero or missing size
+    /// included.
+    pub fn drawing(&self, tint: WorkingColor) -> Result<Drawing, usvg::Error> {
+        let document = self.document()?;
+        Ok(Drawing::record(document.intrinsic_size(), |cx| {
             draw::render(cx, &document, &tint);
-        })
+        }))
     }
 
     /// The name the document gives itself: the root `<title>` of full markup.
@@ -267,8 +271,14 @@ impl Svg {
 
 impl View for Svg {
     fn body(self, env: &Environment) -> impl View {
+        let document = match self.document() {
+            Ok(document) => document,
+            Err(error) => {
+                contract_violation!("{error}; the Svg draws nothing");
+                return AnyView::new(());
+            }
+        };
         let tint = self.tint_in(env);
-        let document = self.document();
         let natural = document.intrinsic_size();
         let label = self.accessible_name();
 
@@ -282,7 +292,7 @@ impl View for Svg {
         .intrinsic_size(Computed::constant(Some(natural)))
         .offered_label(Computed::constant(label));
 
-        self.frame_view(canvas)
+        AnyView::new(self.frame_view(canvas))
     }
 }
 
