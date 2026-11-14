@@ -5414,7 +5414,7 @@ dependencies = [
  "waterui-meta",
  "waterui-navigation",
  "waterui-shape",
- "waterui-svg",
+ "waterui-svg 0.4.0",
  "waterui-text",
  "waterui-url",
  "web-time",
@@ -5550,6 +5550,23 @@ dependencies = [
 [[package]]
 name = "waterui-svg"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c634f1f71f1ff3820c205885566faec45a0477e16a60a5a5b800615a17724654"
+dependencies = [
+ "kurbo",
+ "peniko",
+ "suiteki",
+ "tracing",
+ "usvg",
+ "waterui-core",
+ "waterui-graphics",
+ "waterui-layout",
+ "waterui-macros",
+]
+
+[[package]]
+name = "waterui-svg"
+version = "0.5.0"
 dependencies = [
  "hydrolysis-m3",
  "pollster 1.0.1",
