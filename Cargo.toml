@@ -131,14 +131,14 @@ waterui-webview = { git = "https://github.com/water-rs/waterui", branch = "dev" 
 # The split-out component crates, each on its `dev`, as the framework's own
 # patch table has them. `waterui-svg` itself is the local crate, patched at
 # the top of the table.
-waterui-barcode = { git = "https://github.com/water-rs/barcode", branch = "dev" }
+waterui-barcode = { git = "https://github.com/water-rs/barcode", branch = "main" }
 waterui-canvas = { git = "https://github.com/water-rs/canvas", branch = "dev" }
-waterui-chart = { git = "https://github.com/water-rs/chart", branch = "dev" }
-waterui-image = { git = "https://github.com/water-rs/image", branch = "dev" }
-waterui-map-gpu = { git = "https://github.com/water-rs/map-gpu", branch = "dev" }
-waterui-math = { git = "https://github.com/water-rs/math", branch = "dev" }
-waterui-particle = { git = "https://github.com/water-rs/particle", branch = "dev" }
-waterui-video-gpu = { git = "https://github.com/water-rs/video-gpu", branch = "dev" }
+waterui-chart = { git = "https://github.com/water-rs/chart", branch = "main" }
+waterui-image = { git = "https://github.com/water-rs/image", branch = "main" }
+waterui-map-gpu = { git = "https://github.com/water-rs/map-gpu", branch = "main" }
+waterui-math = { git = "https://github.com/water-rs/math", branch = "main" }
+waterui-particle = { git = "https://github.com/water-rs/particle", branch = "main" }
+waterui-video-gpu = { git = "https://github.com/water-rs/video-gpu", branch = "main" }
 
 # The renderer and its theme, from the sources the framework's own patch
 # table names: `hydrolysis` lives in-tree at `backends/hydrolysis`
@@ -146,7 +146,7 @@ waterui-video-gpu = { git = "https://github.com/water-rs/video-gpu", branch = "d
 # as every `waterui-*` crate; its Material 3 theme is still external and
 # follows its `dev`, as the framework's does.
 hydrolysis = { git = "https://github.com/water-rs/waterui", branch = "dev" }
-hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", branch = "dev" }
+hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", branch = "main" }
 
 # The Cherenkov engine family and its filtrate members, in-tree under
 # `graphics/` in water-rs/waterui (water-rs/waterui#1449). Every filtrate in
