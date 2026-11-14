@@ -11,7 +11,7 @@ use usvg::roxmltree::{Document, Node};
 /// A `<title>` nested deeper names that element rather than the drawing and
 /// is left alone. Whitespace is collapsed the way it would be spoken. `None`
 /// for markup that does not parse and for a missing or empty title; the
-/// scene parser is the one that reports a document it cannot draw.
+/// drawing parser is the one that reports a document it cannot draw.
 pub fn document_title(markup: &str) -> Option<String> {
     let document = Document::parse(markup).ok()?;
     let title = document

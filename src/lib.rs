@@ -1,10 +1,12 @@
 //! SVG rendering for `WaterUI`.
 //!
-//! This crate provides `Svg`, a view for rendering SVG content using GPU-accelerated
-//! rendering via `SceneView`.
+//! This crate provides `Svg`, a view that draws SVG content on a `Canvas`.
 //!
-//! A document is parsed with `usvg` and drawn through the engine-independent
-//! `Scene2D` contract, so it renders on whichever engine the backend supplies.
+//! A document is parsed with `usvg` once and recorded on the canvas as fills,
+//! strokes, clips and layers, so it renders on whichever renderer draws the
+//! screen around it. The tint is a live paint: a change of the tint repaints
+//! the commands that use it and records nothing again. The same commands record
+//! into a standalone `Drawing` with [`Svg::drawing`].
 //!
 //! # Text, fonts and cargo features
 //!
@@ -15,46 +17,42 @@
 //!
 //! | Feature | Default | Effect |
 //! | --- | --- | --- |
-//! | `text` | off | Enables `usvg/text`, which lays `<text>` out into outline paths, and the font-taking [`SvgSceneContent::with_fonts`] constructor. Costs `fontdb`, `rustybuzz` and the `unicode-bidi` / `unicode-script` / `unicode-vo` crates. |
+//! | `text` | off | Enables `usvg/text`, which lays `<text>` out into outline paths, and the font-taking [`Svg::fonts`] setter. Costs `fontdb`, `rustybuzz` and the `unicode-bidi` / `unicode-script` / `unicode-vo` crates. |
 //!
 //! `usvg` is depended on with `default-features = false`. Its `system-fonts`
 //! and `memmap-fonts` defaults are deliberately not enabled: both only widen
 //! `fontdb` towards the filesystem (directory and fontconfig scanning,
 //! memory-mapped faces), and this crate never asks `fontdb` to read a file. An
 //! application that wants the operating system's fonts owns that decision
-//! itself — it builds the font database and passes it to
-//! [`SvgSceneContent::with_fonts`].
+//! itself — it builds the font database and passes it to [`Svg::fonts`].
 //!
 //! Without `text`, and with `text` but no fonts, a `<text>` element is dropped
-//! during parsing and draws nothing. [`Svg`] itself always parses without
-//! fonts: it is the icon primitive, and icon artwork is paths.
+//! during parsing and draws nothing: [`Svg`] is the icon primitive, and icon
+//! artwork is paths.
 
 extern crate alloc;
 
-mod scene_data;
-mod scene_renderer;
+mod document;
+mod draw;
 mod title;
-mod tree_renderer;
 
 /// The SVG parser this crate draws from.
 pub use usvg;
 
-/// Scene content that draws an SVG document, for composing an SVG into a scene
-/// that is not a whole view of its own.
-pub use scene_renderer::SvgSceneContent;
-
 use alloc::string::String;
-use alloc::sync::Arc;
 
 use suiteki::Str;
 use waterui_core::layout::Size;
-use waterui_core::reactive::signal::IntoComputed;
-use waterui_core::{AnyView, Computed, Environment, Signal, SignalExt, View, constant};
-use waterui_graphics::color::Color;
-use waterui_graphics::{Picture, SceneRecording};
+use waterui_core::reactive::SignalExt as _;
+use waterui_core::{AnyView, Computed, Environment, View, contract_violation};
+use waterui_graphics::canvas::{Canvas, Drawing};
+use waterui_graphics::color::{Color, ForegroundColor, WorkingColor};
 use waterui_layout::frame::Frame;
 
-/// A view for rendering SVG content using GPU-accelerated rendering.
+use crate::document::{Document, fit, path_markup};
+use crate::draw::{FIRST_MARKER, SECOND_MARKER};
+
+/// A view for rendering SVG content.
 ///
 /// The SVG data can be either:
 /// - Full SVG markup
@@ -73,29 +71,38 @@ use waterui_layout::frame::Frame;
 #[must_use = "an `Svg` does nothing unless it is rendered as part of a view"]
 pub struct Svg {
     /// SVG content (path data or full SVG markup).
-    pub(crate) content: Str,
+    content: Str,
     /// Intrinsic width for aspect ratio.
-    pub(crate) width: Option<f32>,
+    width: Option<f32>,
     /// Intrinsic height for aspect ratio.
-    pub(crate) height: Option<f32>,
+    height: Option<f32>,
     /// Optional tint color (for monochrome icons).
-    pub(crate) tint: Option<Color>,
+    tint: Option<Color>,
     /// Whether to render as stroke (outline) rather than fill.
-    pub(crate) stroke: bool,
+    stroke: bool,
+    /// The fonts `<text>` is laid out with.
+    #[cfg(feature = "text")]
+    fonts: Option<alloc::sync::Arc<usvg::fontdb::Database>>,
 }
 
 impl Svg {
+    fn with(content: Str, size: Option<(f32, f32)>, stroke: bool) -> Self {
+        Self {
+            content,
+            width: size.map(|(width, _)| width),
+            height: size.map(|(_, height)| height),
+            tint: None,
+            stroke,
+            #[cfg(feature = "text")]
+            fonts: None,
+        }
+    }
+
     /// Creates an SVG from raw SVG markup or path data.
     ///
     /// For icons, prefer `from_path` which provides explicit dimensions.
     pub fn new(content: impl Into<Str>) -> Self {
-        Self {
-            content: content.into(),
-            width: None,
-            height: None,
-            tint: None,
-            stroke: false,
-        }
+        Self::with(content.into(), None, false)
     }
 
     /// Creates an SVG from path data with explicit dimensions.
@@ -103,13 +110,7 @@ impl Svg {
     /// This is the recommended constructor for filled icon SVGs where the
     /// path data comes from the `d` attribute of an SVG path element.
     pub fn from_path(path_data: impl Into<Str>, width: f32, height: f32) -> Self {
-        Self {
-            content: path_data.into(),
-            width: Some(width),
-            height: Some(height),
-            tint: None,
-            stroke: false,
-        }
+        Self::with(path_data.into(), Some((width, height)), false)
     }
 
     /// Creates an SVG from path data rendered as strokes (outlines).
@@ -123,18 +124,29 @@ impl Svg {
     /// - `stroke-linejoin: round`
     /// - `fill: none`
     pub fn from_stroke_path(path_data: impl Into<Str>, width: f32, height: f32) -> Self {
-        Self {
-            content: path_data.into(),
-            width: Some(width),
-            height: Some(height),
-            tint: None,
-            stroke: true,
-        }
+        Self::with(path_data.into(), Some((width, height)), true)
     }
 
     /// Sets the tint color for the SVG.
+    ///
+    /// The tint is live: a color that changes repaints the drawing without
+    /// recording it again.
     pub fn tint(mut self, color: impl Into<Color>) -> Self {
         self.tint = Some(color.into());
+        self
+    }
+
+    /// Lays `<text>` out with `fonts`.
+    ///
+    /// The text becomes outline paths like the rest of the drawing, so it
+    /// renders identically on every backend rather than through a platform
+    /// text stack. Which fonts exist is the caller's business: this crate never
+    /// reads the operating system's font catalogue, so an application that
+    /// wants system fonts loads them into the database itself and passes the
+    /// result here.
+    #[cfg(feature = "text")]
+    pub fn fonts(mut self, fonts: alloc::sync::Arc<usvg::fontdb::Database>) -> Self {
+        self.fonts = Some(fonts);
         self
     }
 
@@ -154,42 +166,49 @@ impl Svg {
         self
     }
 
-    /// Build full SVG document from path data if needed.
-    ///
-    /// The `color` parameter specifies the fill or stroke color for the SVG.
-    fn build_svg_content(&self, color: &str) -> alloc::string::String {
-        if let (Some(width), Some(height)) = (self.width, self.height) {
-            let content = self.content.as_str();
-            if content.trim_start().starts_with('<') {
-                // Full SVG markup: support tint only for currentColor-driven assets.
-                if content.contains("currentColor") {
-                    content.replace("currentColor", color)
-                } else {
-                    self.content.to_string()
-                }
-            } else if self.stroke {
-                // Stroke-based path (for outline icons like Lucide)
-                alloc::format!(
-                    r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{content}"/></svg>"#
-                )
-            } else {
-                // Filled path data - wrap in SVG document
-                alloc::format!(
-                    r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" fill="{color}"><path d="{content}"/></svg>"#
-                )
-            }
-        } else {
-            // Assume full SVG content
-            self.content.to_string()
+    /// The SVG markup this view draws, with the colour `marker` where the tint
+    /// goes.
+    fn markup(&self, marker: &str) -> String {
+        let content = self.content.as_str();
+        if content.trim_start().starts_with('<') {
+            // Full SVG markup sizes itself; the tint reaches what asks for
+            // `currentColor`.
+            return content.replace("currentColor", marker);
         }
+        let (Some(width), Some(height)) = (self.width, self.height) else {
+            // Path data without dimensions is passed through as is.
+            return content.to_string();
+        };
+        path_markup(content, width, height, self.stroke, marker)
     }
 
-    /// Records this SVG, drawn in `color`, at its intrinsic size.
-    fn record(&self, color: &str) -> (Size, Arc<SceneRecording>) {
-        let scene_data = scene_data::SvgSceneData::parse(&self.build_svg_content(color));
-        let size = scene_data.intrinsic_size();
-        let recording = Picture::record(|scene| scene_data.draw(scene, size.width, size.height));
-        (size, recording)
+    /// Parses this SVG, twice: once with each marker colour at the tint, so
+    /// that the drawing can tell the tint from the document's own colours.
+    fn document(&self) -> Result<Document, usvg::Error> {
+        let first = self.markup(FIRST_MARKER);
+        let second = self.markup(SECOND_MARKER);
+        #[cfg(feature = "text")]
+        if let Some(fonts) = &self.fonts {
+            return Document::parse_with_fonts(&first, &second, fonts.clone());
+        }
+        Document::parse(&first, &second)
+    }
+
+    /// Records this SVG into a [`Drawing`] of its own size, painted with `tint`
+    /// where it asks for the tint.
+    ///
+    /// A drawing is constants, so a tint that should follow a signal draws the
+    /// `Svg` view instead.
+    ///
+    /// # Errors
+    ///
+    /// When the markup is not an SVG document, a zero or missing size
+    /// included.
+    pub fn drawing(&self, tint: WorkingColor) -> Result<Drawing, usvg::Error> {
+        let document = self.document()?;
+        Ok(Drawing::record(document.intrinsic_size(), |cx| {
+            draw::render(cx, &document, &tint);
+        }))
     }
 
     /// The name the document gives itself: the root `<title>` of full markup.
@@ -197,41 +216,27 @@ impl Svg {
     /// Path data carries no title, so an icon built from a `d` attribute stays
     /// unnamed until the application names it with `.a11y_label(…)` — which
     /// also wins over a title wherever both exist.
-    fn accessible_name(&self) -> Option<String> {
+    fn accessible_name(&self) -> Option<Str> {
         let content = self.content.as_str();
         content
             .trim_start()
             .starts_with('<')
             .then(|| title::document_title(content))
             .flatten()
+            .map(Str::from)
     }
 
-    /// A picture of this SVG offering the document's own name to a screen
-    /// reader.
-    fn picture(&self, size: Size, recording: impl IntoComputed<Arc<SceneRecording>>) -> Picture {
-        let picture = Picture::new(size, recording);
-        match self.accessible_name() {
-            Some(name) => picture.labeled(name),
-            None => picture,
-        }
-    }
-
-    /// A picture of this SVG drawn in a fixed `color`.
-    fn to_picture(&self, color: &str) -> Picture {
-        let (size, recording) = self.record(color);
-        self.picture(size, constant(recording))
-    }
-
-    /// A picture of this SVG whose drawing follows `color_signal`: a new colour
-    /// records new commands into the same picture.
-    fn to_reactive_picture<S>(&self, color_signal: &S) -> Picture
-    where
-        S: Signal<Output = String> + 'static,
-        S::Guard: 'static,
-    {
-        let (size, _) = self.record("#000000");
-        let svg = self.clone();
-        self.picture(size, color_signal.map(move |color| svg.record(&color).1))
+    /// The colour the SVG is tinted with: its own tint, else the foreground
+    /// colour of the environment, else black.
+    fn tint_in(&self, env: &Environment) -> Computed<WorkingColor> {
+        self.tint
+            .as_ref()
+            .map(|color| color.resolve(env))
+            .or_else(|| {
+                env.query::<ForegroundColor, Computed<WorkingColor>>()
+                    .cloned()
+            })
+            .unwrap_or_else(|| Computed::constant(WorkingColor::BLACK))
     }
 
     /// Wraps a view in a frame carrying the SVG's intrinsic size.
@@ -244,12 +249,12 @@ impl Svg {
     ///
     /// It is also the frame's *maximum*, because the natural size is a ceiling
     /// as well as a default: a 24pt icon in a 44pt row is a 24pt icon. The
-    /// scene the frame wraps takes whatever extent it is proposed — that is
-    /// right for a `Canvas`, and it is why an icon needs the ceiling said out
-    /// loud. Without it a stack that proposes its row height (`HStack` proposes
-    /// the bounds height to a child that does not stretch) would get an icon
-    /// stretched to that height. There is deliberately no *minimum*: the
-    /// drawing stays free to shrink into a smaller box.
+    /// canvas the frame wraps draws into whatever extent it is proposed — that
+    /// is right for a `Canvas`, and it is why an icon needs the ceiling said
+    /// out loud. Without it a stack that proposes its row height (`HStack`
+    /// proposes the bounds height to a child that does not stretch) would get
+    /// an icon stretched to that height. There is deliberately no *minimum*:
+    /// the drawing stays free to shrink into a smaller box.
     fn frame_view(&self, view: impl View) -> AnyView {
         match (self.width, self.height) {
             (Some(w), Some(h)) => AnyView::new(
@@ -262,66 +267,63 @@ impl Svg {
             _ => AnyView::new(Frame::new(view)),
         }
     }
-
-    /// Creates a framed SVG scene view for the given color.
-    fn to_framed_picture(&self, color: &str) -> AnyView {
-        self.frame_view(self.to_picture(color))
-    }
-
-    /// Creates a framed reactive SVG scene view.
-    fn to_reactive_framed_picture<S>(&self, color_signal: &S) -> AnyView
-    where
-        S: Signal<Output = String> + 'static,
-        S::Guard: 'static,
-    {
-        self.frame_view(self.to_reactive_picture(color_signal))
-    }
-
-    /// Format a `ResolvedColor` as an SVG-compatible color string.
-    ///
-    /// Converts from linear RGB to sRGB.
-    /// - Opaque colors are emitted as `#rrggbb`.
-    /// - Translucent colors are emitted as `rgba(r,g,b,a)`.
-    fn resolved_color_to_svg_color(
-        color: &waterui_graphics::color::ResolvedColor,
-    ) -> alloc::string::String {
-        let srgb = color.to_srgb();
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let r = (srgb.red * 255.0).clamp(0.0, 255.0) as u8;
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let g = (srgb.green * 255.0).clamp(0.0, 255.0) as u8;
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let b = (srgb.blue * 255.0).clamp(0.0, 255.0) as u8;
-        let alpha = color.opacity.clamp(0.0, 1.0);
-        if alpha >= 0.999_999 {
-            alloc::format!("#{r:02x}{g:02x}{b:02x}")
-        } else {
-            alloc::format!("rgba({r},{g},{b},{alpha:.6})")
-        }
-    }
 }
 
 impl View for Svg {
     fn body(self, env: &Environment) -> impl View {
-        if let Some(tint) = self.tint.clone() {
-            let color_signal = tint
-                .resolve(env)
-                .map(|resolved| Self::resolved_color_to_svg_color(&resolved));
-            return self.to_reactive_framed_picture(&color_signal);
-        }
+        let document = match self.document() {
+            Ok(document) => document,
+            Err(error) => {
+                contract_violation!("{error}; the Svg draws nothing");
+                return AnyView::new(());
+            }
+        };
+        let tint = self.tint_in(env);
+        let natural = document.intrinsic_size();
+        let label = self.accessible_name();
 
-        if let Some(color_signal) = env
-            .query::<
-                waterui_graphics::color::ForegroundColor,
-                Computed<waterui_graphics::color::ResolvedColor>,
-            >()
-            .cloned()
-        {
-            return self.to_reactive_framed_picture(
-                &color_signal.map(|resolved| Self::resolved_color_to_svg_color(&resolved)),
-            );
-        }
+        let canvas = Canvas::new(move |cx| {
+            // The document is recorded once, in its own coordinates; the box
+            // layout gives the canvas moves the whole drawing, not its
+            // commands, and the tint reaches only the paints that use it.
+            let placement = cx.size().map(move |size: Size| fit(natural, size));
+            cx.transform(placement, |cx| draw::render(cx, &document, &tint));
+        })
+        .intrinsic_size(Computed::constant(Some(natural)))
+        .offered_label(Computed::constant(label));
 
-        self.to_framed_picture("#000000")
+        AnyView::new(self.frame_view(canvas))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Svg;
+
+    const TITLED_ICON: &str = include_str!("../tests/data/titled_icon.svg");
+    const PAINTED_ICON: &str = include_str!("../tests/data/painted_icon.svg");
+
+    /// A document's own `<title>` becomes the label its canvas offers a screen
+    /// reader; an application's `a11y_label` wins over it when the view
+    /// mounts, which is the mounted-runtime half of this check.
+    #[test]
+    fn a_titled_document_offers_its_title_as_the_canvass_label() {
+        assert_eq!(
+            Svg::new(TITLED_ICON)
+                .accessible_name()
+                .as_ref()
+                .map(suiteki::Str::as_str),
+            Some("Warning sign")
+        );
+    }
+
+    /// Path data and a document with no `<title>` offer nothing.
+    #[test]
+    fn an_untitled_drawing_offers_no_label() {
+        assert_eq!(
+            Svg::from_path("M3 12h18M3 6h18", 24.0, 24.0).accessible_name(),
+            None
+        );
+        assert_eq!(Svg::new(PAINTED_ICON).accessible_name(), None);
     }
 }

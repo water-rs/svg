@@ -1,27 +1,39 @@
-//! Parsed SVG documents, ready to draw into a scene.
+//! Parsed SVG documents, ready to draw on a canvas.
 
-use waterui_core::layout::Size;
+use alloc::string::String;
+
+use waterui_core::layout::{Affine2, Size};
 
 /// A parsed SVG document.
+///
+/// It is parsed twice, from markup that differs only in the colour at the
+/// tint: the two trees share a structure, and a colour is the tint exactly
+/// where they differ.
 #[derive(Debug)]
-pub struct SvgSceneData {
-    svg_tree: usvg::Tree,
+pub struct Document {
+    first: usvg::Tree,
+    second: usvg::Tree,
 }
 
-impl SvgSceneData {
-    /// Parses SVG content.
+impl Document {
+    /// Parses the two markups of one document.
     ///
     /// The parser is given no fonts, so a `<text>` element is laid out against
     /// an empty font database and contributes nothing to the drawing. That is
     /// what an icon wants — the artwork is geometry, and it looks the same on
     /// every backend and every device. To draw a document whose text matters,
-    /// hand the fonts in with [`SvgSceneData::parse_with_fonts`].
-    #[must_use]
-    pub fn parse(svg_content: &str) -> Self {
-        Self::parse_with_options(svg_content, &usvg::Options::default())
+    /// hand the fonts in with [`Document::parse_with_fonts`].
+    ///
+    /// # Errors
+    ///
+    /// When the markup is not an SVG document, a zero or missing size
+    /// included.
+    pub fn parse(first: &str, second: &str) -> Result<Self, usvg::Error> {
+        Self::parse_with_options(first, second, &usvg::Options::default())
     }
 
-    /// Parses SVG content, laying `<text>` out with `fonts`.
+    /// Parses the two markups of one document, laying `<text>` out with
+    /// `fonts`.
     ///
     /// The text becomes outline paths like the rest of the drawing, so it
     /// renders identically on every backend rather than through a platform
@@ -29,14 +41,19 @@ impl SvgSceneData {
     /// reads the operating system's font catalogue, so an application that
     /// wants system fonts loads them into the database itself and passes the
     /// result here.
+    ///
+    /// # Errors
+    ///
+    /// As [`Document::parse`].
     #[cfg(feature = "text")]
-    #[must_use]
     pub fn parse_with_fonts(
-        svg_content: &str,
+        first: &str,
+        second: &str,
         fonts: alloc::sync::Arc<usvg::fontdb::Database>,
-    ) -> Self {
+    ) -> Result<Self, usvg::Error> {
         Self::parse_with_options(
-            svg_content,
+            first,
+            second,
             &usvg::Options {
                 fontdb: fonts,
                 ..usvg::Options::default()
@@ -44,65 +61,69 @@ impl SvgSceneData {
         )
     }
 
-    fn parse_with_options(svg_content: &str, options: &usvg::Options<'_>) -> Self {
-        let svg_tree =
-            usvg::Tree::from_str(svg_content, options).expect("failed to parse SVG content");
-        let svg_size = svg_tree.size();
-        assert!(
-            svg_size.width().is_finite()
-                && svg_size.height().is_finite()
-                && svg_size.width() > 0.0
-                && svg_size.height() > 0.0,
-            "SVG must have positive finite dimensions, got {}x{}",
-            svg_size.width(),
-            svg_size.height()
-        );
+    fn parse_with_options(
+        first: &str,
+        second: &str,
+        options: &usvg::Options<'_>,
+    ) -> Result<Self, usvg::Error> {
+        Ok(Self {
+            first: usvg::Tree::from_str(first, options)?,
+            second: usvg::Tree::from_str(second, options)?,
+        })
+    }
 
-        Self { svg_tree }
+    /// The tree parsed with the first marker colour.
+    pub(crate) const fn first(&self) -> &usvg::Tree {
+        &self.first
+    }
+
+    /// The tree parsed with the second marker colour.
+    pub(crate) const fn second(&self) -> &usvg::Tree {
+        &self.second
     }
 
     /// The document's own size, from its `viewBox` / `width` / `height`.
     ///
-    /// This is the size an SVG *is*: `parse` has already established it is finite
-    /// and positive, so an icon with no frame around it measures at the size its
+    /// This is the size an SVG *is*: `usvg` parses only a finite, positive one,
+    /// so an icon with no frame around it measures at the size its
     /// author drew, and one given a single axis keeps this document's aspect ratio.
-    #[must_use]
     pub fn intrinsic_size(&self) -> Size {
-        let size = self.svg_tree.size();
+        let size = self.first.size();
         Size::new(size.width(), size.height())
     }
+}
 
-    /// The transform that fits this document into `width` × `height`.
-    ///
-    /// Aspect ratio is preserved and the result centred, which is what an icon
-    /// in a fixed-size slot wants.
-    #[must_use]
-    pub fn fitting_transform(&self, width: f32, height: f32) -> kurbo::Affine {
-        let size = self.svg_tree.size();
-        let scale = (width / size.width()).min(height / size.height());
-        let offset_x = f64::from(size.width().mul_add(-scale, width) / 2.0);
-        let offset_y = f64::from(size.height().mul_add(-scale, height) / 2.0);
-        kurbo::Affine::translate((offset_x, offset_y)) * kurbo::Affine::scale(f64::from(scale))
-    }
+/// The transform that fits a document of size `natural` into a box of size
+/// `into`.
+///
+/// Aspect ratio is preserved and the result centred, which is what an icon in
+/// a fixed-size slot wants.
+pub fn fit(natural: Size, into: Size) -> Affine2 {
+    let scale = (into.width / natural.width).min(into.height / natural.height);
+    let offset_x = natural.width.mul_add(-scale, into.width) / 2.0;
+    let offset_y = natural.height.mul_add(-scale, into.height) / 2.0;
+    Affine2::new(scale, 0.0, 0.0, scale, offset_x, offset_y)
+}
 
-    /// Draws this document into a scene, whichever engine backs it.
-    ///
-    /// Going through [`waterui_graphics::Scene2D`] rather than appending a
-    /// pre-built `vello::Scene` is what lets an icon render on an engine other
-    /// than Vello classic — the simulator has no indirect execution, and an
-    /// icon that cannot draw there takes the process down with it.
-    pub fn draw(&self, scene: &mut dyn waterui_graphics::Scene2D, width: f32, height: f32) {
-        crate::tree_renderer::render_tree(
-            scene,
-            &self.svg_tree,
-            self.fitting_transform(width, height),
-        );
+/// The markup of an SVG built from path data, in which `marker` is the fill
+/// or stroke colour.
+pub fn path_markup(path_data: &str, width: f32, height: f32, stroke: bool, marker: &str) -> String {
+    if stroke {
+        // Stroke-based path (for outline icons like Lucide).
+        alloc::format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" fill="none" stroke="{marker}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{path_data}"/></svg>"#
+        )
+    } else {
+        // Filled path data, wrapped in an SVG document.
+        alloc::format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" fill="{marker}"><path d="{path_data}"/></svg>"#
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::SvgSceneData;
+    use super::Document;
     use crate::usvg;
 
     const GENERIC_FAMILY: &str = include_str!("../tests/data/text_generic_family.svg");
@@ -113,6 +134,32 @@ mod tests {
     /// into the same outlines on every machine.
     #[cfg(feature = "text")]
     const ROBOTO: &[u8] = include_bytes!("../tests/fonts/Roboto-Regular.ttf");
+
+    fn parse(content: &str) -> Document {
+        Document::parse(content, content).expect("the fixture is a drawable SVG")
+    }
+
+    /// Markup that is not SVG is an error, not a panic.
+    #[test]
+    fn markup_that_does_not_parse_is_an_error() {
+        let markup = "<svg this is not markup";
+        let result = Document::parse(markup, markup);
+        assert!(
+            matches!(result, Err(usvg::Error::ParsingFailed(_))),
+            "{result:?}"
+        );
+    }
+
+    /// A document with no area to draw in is an error, not a panic.
+    #[test]
+    fn a_document_without_a_size_is_an_error() {
+        let markup = r#"<svg xmlns="http://www.w3.org/2000/svg" width="0" height="10"/>"#;
+        let result = Document::parse(markup, markup);
+        assert!(
+            matches!(result, Err(usvg::Error::InvalidSize)),
+            "{result:?}"
+        );
+    }
 
     /// What a parsed document actually contains, counted node by node.
     #[derive(Debug, Default, PartialEq, Eq)]
@@ -127,9 +174,9 @@ mod tests {
     }
 
     impl Census {
-        fn of(data: &SvgSceneData) -> Self {
+        fn of(document: &Document) -> Self {
             let mut census = Self::default();
-            census.visit(data.svg_tree.root());
+            census.visit(document.first().root());
             census
         }
 
@@ -160,7 +207,7 @@ mod tests {
     #[test]
     fn geometry_parses_the_same_whatever_the_fonts() {
         assert_eq!(
-            Census::of(&SvgSceneData::parse(PAINTED_ICON)),
+            Census::of(&parse(PAINTED_ICON)),
             Census {
                 paths: 4,
                 segments: 25,
@@ -170,7 +217,7 @@ mod tests {
             }
         );
         assert_eq!(
-            Census::of(&SvgSceneData::parse(STROKED_ICON)),
+            Census::of(&parse(STROKED_ICON)),
             Census {
                 paths: 2,
                 segments: 12,
@@ -181,7 +228,7 @@ mod tests {
         );
     }
 
-    /// `<text>` needs a font, and [`SvgSceneData::parse`] supplies none — so the
+    /// `<text>` needs a font, and [`Document::parse`] supplies none — so the
     /// element is dropped during parsing and only the background rectangle of
     /// each fixture survives.
     ///
@@ -193,7 +240,7 @@ mod tests {
     fn text_without_fonts_draws_nothing() {
         for (fixture, content) in [("generic", GENERIC_FAMILY), ("named", NAMED_FAMILY)] {
             assert_eq!(
-                Census::of(&SvgSceneData::parse(content)),
+                Census::of(&parse(content)),
                 Census {
                     paths: 1,
                     segments: 5,
@@ -223,7 +270,10 @@ mod tests {
         let fonts = alloc::sync::Arc::new(fonts);
 
         for (fixture, content) in [("generic", GENERIC_FAMILY), ("named", NAMED_FAMILY)] {
-            let census = Census::of(&SvgSceneData::parse_with_fonts(content, fonts.clone()));
+            let census = Census::of(
+                &Document::parse_with_fonts(content, content, fonts.clone())
+                    .expect("the fixture is a drawable SVG"),
+            );
             assert_eq!(census.texts, 1, "{fixture} family fixture should lay out");
             assert!(
                 census.text_outlines >= 1 && census.text_outline_segments >= 20,
