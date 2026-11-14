@@ -735,7 +735,7 @@ mod tests {
             ))
             .viewbox(8.0, 8.0);
             let tint = binding(WorkingColor::new([0.0, 1.0, 0.0, 1.0]));
-            let recording = record(&svg, &tint.clone().computed());
+            let recording = record(&svg, &tint.computed());
             let [own, asked] = &recording.paints[..] else {
                 panic!("{spelling}: two shapes have two paints");
             };
