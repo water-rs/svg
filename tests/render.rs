@@ -77,6 +77,12 @@ fn render_both(drawing: &Drawing, scale: f32, name: &str) {
     let cpu = OffscreenRenderer::cpu().expect("offscreen render requires the CPU rasteriser");
     let drawing = on_white(drawing);
 
+    let gallery_engine = if std::env::var("WATERUI_TEST_OFFSCREEN_ENGINE").as_deref() == Ok("cpu") {
+        "cpu"
+    } else {
+        "gpu"
+    };
+
     for (engine, image) in [
         (
             "gpu",
@@ -92,6 +98,16 @@ fn render_both(drawing: &Drawing, scale: f32, name: &str) {
         image
             .save_png(artifacts_dir().join(format!("{name}_{engine}.png")))
             .expect("png should be written");
+        if engine == gallery_engine
+            && !matches!(name, "text_generic_family" | "text_named_family")
+            && let Some(artifacts_root) = std::env::var_os("WATERUI_TEST_ARTIFACTS_DIR")
+        {
+            let case_dir = PathBuf::from(artifacts_root).join("render").join(name);
+            std::fs::create_dir_all(&case_dir).expect("artifact directory must be creatable");
+            image
+                .save_png(case_dir.join("00_rendered.png"))
+                .expect("artifact png should be written");
+        }
     }
 }
 

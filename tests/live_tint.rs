@@ -33,13 +33,15 @@ fn a_tint_that_changes_repaints_the_mounted_drawing() {
                     .tint(signal_color(tint.clone()))
             }
         });
-    app.snapshot()
+    app.capture_snapshot("live_tint", "reactive_tint", "00_orange")
+        .snapshot()
         .save_png(output("orange.png"))
         .expect("the snapshot is writable");
 
     tint.set(Color::srgb(0, 112, 128));
     app.pump_for(Duration::from_millis(16));
-    app.snapshot()
+    app.capture_snapshot("live_tint", "reactive_tint", "01_teal")
+        .snapshot()
         .save_png(output("teal.png"))
         .expect("the snapshot is writable");
 }

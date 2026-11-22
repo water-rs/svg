@@ -157,12 +157,21 @@ jobs:
         run: rustc --version && cargo --version
       - run: cargo check --workspace --all-features
 
+  gallery:
+    name: Visual Gallery
+    needs: bump
+    uses: water-rs/.github/.github/workflows/visual-gallery.yml@main
+    with:
+      artifact-name: waterui-svg-gallery
+      test-args: --test render --test live_tint --all-features
+      run-cpu: true
+
   result:
     # The single check the `main` ruleset requires: it passes when every
     # job passed or was skipped (release-plz bump pull requests skip all).
     name: CI result
     if: always()
-    needs: [bump, test, lint, msrv]
+    needs: [bump, test, lint, msrv, gallery]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
