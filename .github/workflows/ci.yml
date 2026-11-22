@@ -163,8 +163,9 @@ jobs:
     uses: water-rs/.github/.github/workflows/visual-gallery.yml@main
     with:
       artifact-name: waterui-svg-gallery
-      test-args: --test render --test live_tint --all-features
-      run-cpu: true
+      packages: -p waterui-svg
+      gpu-features: --all-features
+      nextest-args: --test render --test live_tint
 
   result:
     # The single check the `main` ruleset requires: it passes when every
