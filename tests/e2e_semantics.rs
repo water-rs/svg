@@ -49,14 +49,14 @@ mod mounted {
             24.0,
             24.0,
         )
-        .tint(Srgb::new(1.0, 0.8, 0.1))
+        .foreground(Srgb::new(1.0, 0.8, 0.1))
         .a11y_role(AccessibilityRole::Image)
         .a11y_label("Filled svg")
     }
 
     fn stroke_svg_view() -> impl waterui::View {
         Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0)
-            .tint(Srgb::WHITE)
+            .foreground(Srgb::WHITE)
             .a11y_role(AccessibilityRole::Image)
             .a11y_label("Stroke svg")
     }
@@ -69,7 +69,7 @@ mod mounted {
     /// returning.
     fn resized_svg_view() -> impl waterui::View {
         Svg::from_path("M12 2A10 10 0 1 0 12 22A10 10 0 1 0 12 2Z", 24.0, 24.0)
-            .tint(Srgb::WHITE)
+            .foreground(Srgb::WHITE)
             .size(8.0, 8.0)
             .a11y_role(AccessibilityRole::Image)
             .a11y_label("Resized svg")
