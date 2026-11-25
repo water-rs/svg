@@ -637,7 +637,7 @@ mod tests {
     #[test]
     fn a_stroke_takes_the_tint_with_its_alpha() {
         let tint = binding(WorkingColor::new([1.0, 0.0, 0.0, 0.5]));
-        let svg = Svg::from_stroke_path("M3 12h18", 24.0, 24.0);
+        let svg = Svg::from_path("M3 12h18", 24.0, 24.0).stroked();
         let recording = record(&svg, &tint.computed());
         let [paint] = &recording.paints[..] else {
             panic!("one stroke has one paint");

@@ -55,7 +55,8 @@ mod mounted {
     }
 
     fn stroke_svg_view() -> impl waterui::View {
-        Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0)
+        Svg::from_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0)
+            .stroked()
             .foreground(Srgb::WHITE)
             .a11y_role(AccessibilityRole::Image)
             .a11y_label("Stroke svg")

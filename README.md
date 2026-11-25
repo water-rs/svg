@@ -32,7 +32,7 @@ a `<text>` element is dropped during parsing and draws nothing.
 
 `Svg` draws in its own colours except where the artwork asks for the colour of
 the view around it: `currentColor`, or the fill or stroke of path data
-(`Svg::from_path`, `Svg::from_stroke_path`). That colour comes from the
+(`Svg::from_path`, `Svg::from_path(...).stroked()`). That colour comes from the
 environment's foreground colour (`.foreground(…)`). It is a live paint: a
 foreground colour that follows a signal repaints the drawing in place and records nothing
 again. `Svg::drawing` records the same drawing, with a tint fixed, into a
@@ -54,7 +54,7 @@ The title is the name the drawing *offers*. An application's own
 `.a11y_label(…)` on the view or any ancestor wins over it, because the
 application knows what the icon is for. A `<title>` nested inside an element
 names that element rather than the document and is not used; path data
-(`Svg::from_path`, `Svg::from_stroke_path`) carries no title, so those icons
+(`Svg::from_path`, `Svg::from_path(...).stroked()`) carries no title, so those icons
 stay unnamed until the application names them.
 
 ## License

@@ -67,6 +67,7 @@ use crate::draw::{FIRST_MARKER, SECOND_MARKER};
 ///
 /// // From SVG path data (most common for icons)
 /// let icon = Svg::from_path("M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z", 24.0, 24.0);
+/// let _ = Svg::from_path("M3 12h18", 24.0, 24.0).stroked();
 ///
 /// // View sizing resolves through `ViewExt::size`, not an inherent builder:
 /// let framed: Frame<Svg> = icon.size(32.0, 32.0);
@@ -109,13 +110,14 @@ impl Svg {
 
     /// Creates an SVG from path data with explicit dimensions.
     ///
-    /// This is the recommended constructor for filled icon SVGs where the
-    /// path data comes from the `d` attribute of an SVG path element.
+    /// Renders as filled shapes by default; chain [`Self::stroked`] for
+    /// stroke-based icons such as Lucide where path data represents outlines.
     pub fn from_path(path_data: impl Into<Str>, width: f32, height: f32) -> Self {
         Self::with(path_data.into(), Some((width, height)), false)
     }
 
-    /// Creates an SVG from path data rendered as strokes (outlines).
+    /// Renders this path-based SVG as strokes (outlines) instead of filled
+    /// shapes.
     ///
     /// This is for stroke-based icon sets like Lucide where the path
     /// represents the outline of the icon, not a filled shape.
@@ -125,8 +127,9 @@ impl Svg {
     /// - `stroke-linecap: round`
     /// - `stroke-linejoin: round`
     /// - `fill: none`
-    pub fn from_stroke_path(path_data: impl Into<Str>, width: f32, height: f32) -> Self {
-        Self::with(path_data.into(), Some((width, height)), true)
+    pub const fn stroked(mut self) -> Self {
+        self.stroke = true;
+        self
     }
 
     /// Lays `<text>` out with `fonts`.
