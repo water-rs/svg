@@ -5,7 +5,7 @@ resolver = "2"
 name = "waterui-svg"
 version = "0.4.0"
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.100"
 authors = ["Lexo Liu <me@lexo.cool>"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
@@ -69,7 +69,7 @@ usvg = { version = "0.48.1", default-features = false }
 # The rendering tests draw a `Drawing` through the Cherenkov GPU engine and the
 # CPU rasteriser, so the tests need the engine-backed half of the graphics
 # crate even though the crate itself records without one.
-waterui-graphics = { version = "0.5.1", features = ["gpu", "cpu"] }
+waterui-graphics = { version = "0.5.1", features = ["gpu", "cpu", "image-decode"] }
 
 waterui = "0.5.2"
 waterui-testing = "0.5.1"
@@ -96,11 +96,14 @@ waterui-svg = { path = "." }
 # water-rs/waterui#4054) and the paint transform, which the crate draws
 # through.
 waterui = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-accessibility = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-assets = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-assets-core = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-assets-macros = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-assets-planner = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-backend-core = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-capture = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-color = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-controls = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-core = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-dylib = { git = "https://github.com/water-rs/waterui", branch = "main" }
@@ -109,7 +112,9 @@ waterui-graphics = { git = "https://github.com/water-rs/waterui", branch = "main
 waterui-icon = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-icons-codegen = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-icons-lucide = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-inspector-app = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-inspector-protocol = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-interaction = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-internal = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-layout = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-locale = { git = "https://github.com/water-rs/waterui", branch = "main" }
@@ -120,7 +125,9 @@ waterui-mcp-protocol = { git = "https://github.com/water-rs/waterui", branch = "
 waterui-media = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-navigation = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-preview-protocol = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-resources = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-shape = { git = "https://github.com/water-rs/waterui", branch = "main" }
+waterui-structural-transition = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-testing = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-text = { git = "https://github.com/water-rs/waterui", branch = "main" }
 waterui-url = { git = "https://github.com/water-rs/waterui", branch = "main" }
@@ -146,6 +153,7 @@ waterui-video-gpu = { git = "https://github.com/water-rs/video-gpu", branch = "m
 # as every `waterui-*` crate; its Material 3 theme is still external and
 # follows its `dev`, as the framework's does.
 hydrolysis = { git = "https://github.com/water-rs/waterui", branch = "main" }
+hydrolysis-style = { git = "https://github.com/water-rs/waterui", branch = "main" }
 hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", branch = "main" }
 
 # The Cherenkov engine family and its filtrate members, in-tree under
@@ -155,6 +163,10 @@ hydrolysis-m3 = { git = "https://github.com/water-rs/hydrolysis-m3", branch = "m
 cherenkov = { git = "https://github.com/water-rs/waterui", branch = "main" }
 cherenkov-cpu = { git = "https://github.com/water-rs/waterui", branch = "main" }
 cherenkov-gpu = { git = "https://github.com/water-rs/waterui", branch = "main" }
+cherenkov-record = { git = "https://github.com/water-rs/waterui", branch = "main" }
+cherenkov-shader = { git = "https://github.com/water-rs/waterui", branch = "main" }
+cherenkov-simd = { git = "https://github.com/water-rs/waterui", branch = "main" }
+cherenkov-stroke = { git = "https://github.com/water-rs/waterui", branch = "main" }
 filtrate = { git = "https://github.com/water-rs/waterui", branch = "main" }
 filtrate-core = { git = "https://github.com/water-rs/waterui", branch = "main" }
 filtrate-derive = { git = "https://github.com/water-rs/waterui", branch = "main" }

@@ -46,7 +46,7 @@ use waterui_core::layout::Size;
 use waterui_core::reactive::SignalExt as _;
 use waterui_core::{AnyView, Computed, Environment, View, contract_violation};
 use waterui_graphics::canvas::{Canvas, Drawing};
-use waterui_graphics::color::{Color, ForegroundColor, WorkingColor};
+use waterui_graphics::color::{Color, WorkingColor, installed_color_signal, token};
 use waterui_layout::frame::Frame;
 
 use crate::document::{Document, fit, path_markup};
@@ -232,10 +232,7 @@ impl Svg {
         self.tint
             .as_ref()
             .map(|color| color.resolve(env))
-            .or_else(|| {
-                env.query::<ForegroundColor, Computed<WorkingColor>>()
-                    .cloned()
-            })
+            .or_else(|| installed_color_signal::<token::Foreground>(env))
             .unwrap_or_else(|| Computed::constant(WorkingColor::BLACK))
     }
 
