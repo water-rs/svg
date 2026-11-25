@@ -33,7 +33,7 @@ multiple_crate_versions = "allow"
 
 [features]
 # No text support by default: every known consumer of this crate draws icon
-# geometry (`Svg::from_path`, `Svg::from_stroke_path`, icon sets), and the
+# geometry (`Svg::from_path`, `Svg::from_path(...).stroked()`, icon sets), and the
 # parser this crate uses carries no font database, so `usvg/text` would pull
 # `fontdb`, `rustybuzz` and the `unicode-*` crates into every application for a
 # code path that cannot produce a glyph. See README.md for the full table.

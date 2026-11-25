@@ -150,7 +150,7 @@ fn path_data_is_drawn_in_the_tint() {
     );
     render_both(
         &drawing(
-            &Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0),
+            &Svg::from_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0).stroked(),
             TEAL,
         ),
         8.0,
