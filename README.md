@@ -32,9 +32,9 @@ a `<text>` element is dropped during parsing and draws nothing.
 
 `Svg` draws in its own colours except where the artwork asks for the colour of
 the view around it: `currentColor`, or the fill or stroke of path data
-(`Svg::from_path`, `Svg::from_stroke_path`). That colour is the tint, from
-`.tint(…)` or else the environment's foreground colour. It is a live paint: a
-tint that follows a signal repaints the drawing in place and records nothing
+(`Svg::from_path`, `Svg::from_stroke_path`). That colour comes from the
+environment's foreground colour (`.foreground(…)`). It is a live paint: a
+foreground colour that follows a signal repaints the drawing in place and records nothing
 again. `Svg::drawing` records the same drawing, with a tint fixed, into a
 `waterui_graphics::canvas::Drawing`.
 

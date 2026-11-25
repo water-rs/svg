@@ -43,10 +43,10 @@ use alloc::string::String;
 
 use suiteki::Str;
 use waterui_core::layout::Size;
-use waterui_core::reactive::{SignalExt as _, signal::IntoSignal};
+use waterui_core::reactive::SignalExt as _;
 use waterui_core::{AnyView, Computed, Environment, View, contract_violation};
 use waterui_graphics::canvas::{Canvas, Drawing};
-use waterui_graphics::color::{Color, WorkingColor, installed_color_signal, token};
+use waterui_graphics::color::{WorkingColor, installed_color_signal, token};
 use waterui_layout::frame::Frame;
 
 use crate::document::{Document, fit, path_markup};
@@ -60,12 +60,17 @@ use crate::draw::{FIRST_MARKER, SECOND_MARKER};
 ///
 /// # Example
 ///
-/// ```ignore
-/// // From SVG path data (most common for icons)
-/// Svg::from_path("M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z", 24.0, 24.0)
+/// ```
+/// use waterui::{ViewExt as _, layout::frame::Frame};
+/// use waterui_graphics::color::Srgb;
+/// use waterui_svg::Svg;
 ///
-/// // Stroke-based icons (like Lucide)
-/// Svg::from_stroke_path("M3 12h18M3 6h18M3 18h18", 24.0, 24.0)
+/// // From SVG path data (most common for icons)
+/// let icon = Svg::from_path("M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z", 24.0, 24.0);
+///
+/// // View sizing resolves through `ViewExt::size`, not an inherent builder:
+/// let framed: Frame<_> = icon.foreground(Srgb::WHITE).size(32.0, 32.0);
+/// # let _ = framed;
 /// ```
 #[derive(Debug, Clone)]
 #[must_use = "an `Svg` does nothing unless it is rendered as part of a view"]
@@ -76,8 +81,6 @@ pub struct Svg {
     width: Option<f32>,
     /// Intrinsic height for aspect ratio.
     height: Option<f32>,
-    /// Optional tint color (for monochrome icons).
-    tint: Option<Color>,
     /// Whether to render as stroke (outline) rather than fill.
     stroke: bool,
     /// The fonts `<text>` is laid out with.
@@ -91,7 +94,6 @@ impl Svg {
             content,
             width: size.map(|(width, _)| width),
             height: size.map(|(_, height)| height),
-            tint: None,
             stroke,
             #[cfg(feature = "text")]
             fonts: None,
@@ -125,15 +127,6 @@ impl Svg {
     /// - `fill: none`
     pub fn from_stroke_path(path_data: impl Into<Str>, width: f32, height: f32) -> Self {
         Self::with(path_data.into(), Some((width, height)), true)
-    }
-
-    /// Sets the tint color for the SVG.
-    ///
-    /// The tint is live: a color that changes repaints the drawing without
-    /// recording it again.
-    pub fn tint(mut self, color: impl IntoSignal<Color> + 'static) -> Self {
-        self.tint = Some(Color::from_signal(color));
-        self
     }
 
     /// Lays `<text>` out with `fonts`.
@@ -226,13 +219,10 @@ impl Svg {
             .map(Str::from)
     }
 
-    /// The colour the SVG is tinted with: its own tint, else the foreground
-    /// colour of the environment, else black.
-    fn tint_in(&self, env: &Environment) -> Computed<WorkingColor> {
-        self.tint
-            .as_ref()
-            .map(|color| color.resolve(env))
-            .or_else(|| installed_color_signal::<token::Foreground>(env))
+    /// The colour the SVG is painted with where it asks for `currentColor`:
+    /// the environment's foreground colour, else black.
+    fn tint_in(env: &Environment) -> Computed<WorkingColor> {
+        installed_color_signal::<token::Foreground>(env)
             .unwrap_or_else(|| Computed::constant(WorkingColor::BLACK))
     }
 
@@ -275,7 +265,7 @@ impl View for Svg {
                 return AnyView::new(());
             }
         };
-        let tint = self.tint_in(env);
+        let tint = Self::tint_in(env);
         let natural = document.intrinsic_size();
         let label = self.accessible_name();
 

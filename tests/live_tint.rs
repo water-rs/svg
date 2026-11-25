@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use hydrolysis_m3::Material3;
+use waterui::ViewExt as _;
 use waterui_core::reactive::binding;
 use waterui_graphics::color::Color;
 use waterui_svg::Svg;
@@ -27,7 +28,11 @@ fn a_tint_that_changes_repaints_the_mounted_drawing() {
         .theme(Material3::defaults())
         .mount_offscreen({
             let tint = tint.clone();
-            move || Svg::new(TINTED_ICON).viewbox(96.0, 32.0).tint(tint.clone())
+            move || {
+                Svg::new(TINTED_ICON)
+                    .viewbox(96.0, 32.0)
+                    .foreground(tint.clone())
+            }
         });
     app.capture_snapshot("live_tint", "reactive_tint", "00_orange")
         .snapshot()
