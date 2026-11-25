@@ -69,8 +69,8 @@ use crate::draw::{FIRST_MARKER, SECOND_MARKER};
 /// let icon = Svg::from_path("M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z", 24.0, 24.0);
 ///
 /// // View sizing resolves through `ViewExt::size`, not an inherent builder:
-/// let framed: Frame<_> = icon.foreground(Srgb::WHITE).size(32.0, 32.0);
-/// # let _ = framed;
+/// let framed: Frame<Svg> = icon.size(32.0, 32.0);
+/// let _ = framed.foreground(Srgb::WHITE);
 /// ```
 #[derive(Debug, Clone)]
 #[must_use = "an `Svg` does nothing unless it is rendered as part of a view"]
