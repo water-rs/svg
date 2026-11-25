@@ -43,7 +43,7 @@ use alloc::string::String;
 
 use suiteki::Str;
 use waterui_core::layout::Size;
-use waterui_core::reactive::SignalExt as _;
+use waterui_core::reactive::{SignalExt as _, signal::IntoSignal};
 use waterui_core::{AnyView, Computed, Environment, View, contract_violation};
 use waterui_graphics::canvas::{Canvas, Drawing};
 use waterui_graphics::color::{Color, WorkingColor, installed_color_signal, token};
@@ -131,8 +131,8 @@ impl Svg {
     ///
     /// The tint is live: a color that changes repaints the drawing without
     /// recording it again.
-    pub fn tint(mut self, color: impl Into<Color>) -> Self {
-        self.tint = Some(color.into());
+    pub fn tint(mut self, color: impl IntoSignal<Color> + 'static) -> Self {
+        self.tint = Some(Color::from_signal(color));
         self
     }
 

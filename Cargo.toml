@@ -192,6 +192,12 @@ waterkit-video-core = { git = "https://github.com/water-rs/waterkit", branch = "
 waterkit-video-player = { git = "https://github.com/water-rs/waterkit", branch = "main" }
 waterkit-video-streaming = { git = "https://github.com/water-rs/waterkit", branch = "main" }
 
+# `SignalExt` derived signals capture only their source (water-rs/nami#77),
+# and `nami::scan` lives on `main` ahead of the next crates.io release.
+nami = { git = "https://github.com/water-rs/nami", branch = "main" }
+nami-core = { git = "https://github.com/water-rs/nami", branch = "main" }
+nami-derive = { git = "https://github.com/water-rs/nami", branch = "main" }
+
 # suiteki 0.1.1 on crates.io implements nami-core 0.3's `Signal`; suiteki's
 # `dev` implements 0.5's (water-rs/suiteki#29), the source waterui's own
 # table names. Drop once a release carries it.
