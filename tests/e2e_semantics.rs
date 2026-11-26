@@ -76,6 +76,23 @@ mod mounted {
             .a11y_label("Resized svg")
     }
 
+    fn enlarged_svg_view() -> impl waterui::View {
+        Svg::from_path("M12 2A10 10 0 1 0 12 22A10 10 0 1 0 12 2Z", 24.0, 24.0)
+            .foreground(Srgb::WHITE)
+            .size(48.0, 48.0)
+            .a11y_role(AccessibilityRole::Image)
+            .a11y_label("Enlarged svg")
+    }
+
+    fn unsized_svg_view() -> impl waterui::View {
+        waterui::component::scroll::scroll_both(
+            Svg::from_path("M12 2A10 10 0 1 0 12 22A10 10 0 1 0 12 2Z", 24.0, 24.0)
+                .foreground(Srgb::WHITE)
+                .a11y_role(AccessibilityRole::Image)
+                .a11y_label("Unsized svg"),
+        )
+    }
+
     /// A document that names itself with a root `<title>`.
     fn titled_svg_view() -> impl waterui::View {
         Svg::new(include_str!("data/titled_icon.svg"))
@@ -141,5 +158,39 @@ mod mounted {
             .role(Role::IMAGE)
             .label("Stroke svg")
             .assert_exists();
+    }
+
+    #[waterui::test(enlarged_svg_view, theme = hydrolysis_m3::Material3::defaults(), offscreen, viewport = (120, 120))]
+    fn svg_viewbox_allows_larger_explicit_size(app: &mut OffscreenApp) {
+        let bounds = app
+            .query()
+            .role(Role::IMAGE)
+            .label("Enlarged svg")
+            .single()
+            .bounds();
+
+        assert!(
+            (bounds.width() - 48.0).abs() < 0.5 && (bounds.height() - 48.0).abs() < 0.5,
+            "sized svg should occupy its requested 48x48 box, got {}x{}",
+            bounds.width(),
+            bounds.height()
+        );
+    }
+
+    #[waterui::test(unsized_svg_view, theme = hydrolysis_m3::Material3::defaults(), offscreen, viewport = (120, 120))]
+    fn unsized_svg_defaults_to_viewbox_size(app: &mut OffscreenApp) {
+        let bounds = app
+            .query()
+            .role(Role::IMAGE)
+            .label("Unsized svg")
+            .single()
+            .bounds();
+
+        assert!(
+            (bounds.width() - 24.0).abs() < 0.5 && (bounds.height() - 24.0).abs() < 0.5,
+            "unsized svg should stay at its 24x24 viewBox, got {}x{}",
+            bounds.width(),
+            bounds.height()
+        );
     }
 }
